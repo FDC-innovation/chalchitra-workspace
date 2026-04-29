@@ -1,0 +1,88 @@
+services:
+  gateway:
+    build: ./gateway
+    container_name: chalchitra-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./shared/volumes:/app/data
+    env_file:
+      - .env
+    depends_on:
+      - transcription
+      - enrich
+      - detect
+      - ffmpeg
+      - ollama
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - LLM_BACKEND=ollama
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TRANSCRIPTION_URL=http://transcription:8001
+      - ENRICH_URL=http://enrich:8002
+      - DETECT_URL=http://detect:8003
+      - FFMPEG_URL=http://ffmpeg:8004
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook-test/chalchitra
+
+  transcription:
+    build:
+      context: ./services/transcription
+      dockerfile: Dockerfile
+    container_name: chalchitra-transcription
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./shared/volumes:/app/data
+
+  enrich:
+    build:
+      context: ./services/enrich
+      dockerfile: Dockerfile
+    container_name: chalchitra-enrich
+    ports:
+      - "8002:8002"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+  detect:
+    build:
+      context: ./services/detect
+      dockerfile: Dockerfile
+    container_name: chalchitra-detect
+    ports:
+      - "8003:8003"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+  ffmpeg:
+    build:
+      context: ./services/ffmpeg
+      dockerfile: Dockerfile
+    container_name: chalchitra-ffmpeg
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./shared/volumes:/app/data
+
+  ollama:
+    image: ollama/ollama
+    container_name: chalchitra-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  n8n:
+    image: n8nio/n8n
+    container_name: chalchitra-n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - WEBHOOK_URL=http://localhost:5678
+
+volumes:
+  ollama_data:
+  n8n_data:
