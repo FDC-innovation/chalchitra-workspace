@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import whisper
 import os
 
@@ -10,6 +11,8 @@ model = whisper.load_model("base")
 class TranscribeRequest(BaseModel):
     file_path: str
     episode_id: str
+    language: Optional[str] = None   # None = auto-detect
+    task: str = "translate"          # "translate" → always outputs English
 
 
 def _build_srt(segments: list) -> str:
@@ -38,7 +41,10 @@ def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
     try:
-        result = model.transcribe(req.file_path, word_timestamps=True)
+        kwargs = {"word_timestamps": True, "task": req.task}
+        if req.language:
+            kwargs["language"] = req.language
+        result = model.transcribe(req.file_path, **kwargs)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Whisper failed: {str(e)}")
 
@@ -50,7 +56,7 @@ def transcribe(req: TranscribeRequest):
 
     srt = _build_srt(segments)
     srt_path = os.path.splitext(req.file_path)[0] + ".srt"
-    with open(srt_path, "w") as f:
+    with open(srt_path, "w", encoding="utf-8") as f:
         f.write(srt)
 
     return {

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     WHISPER_MODEL: str = "base"
     WHISPER_DEVICE: str = "cpu"
     MAX_CLIPS: int = 3
-    ENABLE_REMOTION: bool = False
+    ENABLE_RENDER: bool = True
     ANTHROPIC_API_KEY: str = ""
     OLLAMA_URL: str = "http://ollama:11434"
     LLM_BACKEND: str = "ollama"
