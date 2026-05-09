@@ -2,13 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip
-
-RUN pip install --no-cache-dir \
+RUN pip install --upgrade pip && pip install --no-cache-dir \
     fastapi \
     uvicorn \
     pydantic

@@ -5,6 +5,8 @@ from app.models.db import Job
 
 router = APIRouter()
 
-@router.get("/{episode_id}")
-def get_jobs(episode_id: str, session: Session = Depends(get_session)):
-    return session.exec(select(Job).where(Job.episode_id == episode_id)).all()
+
+@router.get("/")
+def list_jobs(session: Session = Depends(get_session)):
+    jobs = session.exec(select(Job).order_by(Job.created_at.desc())).all()
+    return jobs

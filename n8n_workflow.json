@@ -1,0 +1,140 @@
+{
+  "name": "Chalchitra Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chalchitra",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 384],
+      "id": "ecfae620-6be2-4aa0-b8c9-e4369ee913f0",
+      "name": "Chalchitra Webhook",
+      "webhookId": "ef208103-7b1c-47ad-9247-8a2a77968c29"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://transcription:8001/transcribe",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"episode_id\": \"{{ $json.body.episode_id }}\",\n  \"file_path\": \"{{ $json.body.file_path }}\"\n}",
+        "options": { "timeout": 9999999 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [460, 384],
+      "id": "8f5a5e1d-3b45-4f8e-b8f1-f9c21e9f9751",
+      "name": "Transcribe"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://enrich:8002/enrich",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"episode_id\": \"{{ $json.episode_id }}\",\n  \"transcript\": \"{{ $json.text }}\"\n}",
+        "options": { "timeout": 60000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [680, 384],
+      "id": "1eae3b88-2dfd-4b00-b7f5-e7998873ade2",
+      "name": "Enrich"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://detect:8003/detect",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"episode_id\": \"{{ $json.episode_id }}\", \"transcript\": {{ JSON.stringify($('Transcribe').item.json.text) }}, \"srt\": {{ JSON.stringify($('Transcribe').item.json.srt) }}}",
+        "options": { "timeout": 60000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [900, 384],
+      "id": "e1021918-6fe0-4a14-8455-a960b4ccf12b",
+      "name": "Detect"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ffmpeg:8004/ffmpeg",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"episode_id\": \"{{ $('Chalchitra Webhook').item.json.body.episode_id }}\",\n  \"file_path\": \"{{ $('Chalchitra Webhook').item.json.body.file_path }}\",\n  \"clips\": {{ JSON.stringify($json.clips) }}\n}",
+        "options": { "timeout": 300000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1120, 384],
+      "id": "e315fc07-0657-45f4-ab6f-df9cff3934f7",
+      "name": "FFmpeg"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "clips",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1340, 384],
+      "id": "22b0b4d0-1917-4aa5-85b2-a9e3a3a2e043",
+      "name": "Split Clips"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst valid = items.filter(item => {\n  const clip = item.json;\n  if (clip.status !== 'done') {\n    console.log(`Skipping \"${clip.title}\" — status: ${clip.status}`);\n    return false;\n  }\n  if (!clip.file_path) {\n    console.log(`Skipping \"${clip.title}\" — no file_path`);\n    return false;\n  }\n  return true;\n});\nif (valid.length === 0) throw new Error('All clips failed in FFmpeg step.');\nconsole.log(`${valid.length}/${items.length} clips passing to renderer`);\nreturn valid;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 384],
+      "id": "f3a1b2c4-d5e6-7890-abcd-ef1234567890",
+      "name": "Filter Valid Clips"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://renderer:8006/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"episode_id\": \"{{ $('Chalchitra Webhook').item.json.body.episode_id }}\",\n  \"clip_path\": \"{{ $json.file_path }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"start_seconds\": {{ $json.start_seconds }},\n  \"end_seconds\": {{ $json.end_seconds }},\n  \"words\": {{ JSON.stringify($('Transcribe').item.json.words) }},\n  \"channel_name\": \"Chalchitra\",\n  \"cta_text\": \"Follow for more\"\n}",
+        "options": { "timeout": 600000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1780, 384],
+      "id": "e311ae4e-b641-461a-ac8a-d73e2abf6e80",
+      "name": "Renderer",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = items.map(item => {\n  const d = item.json;\n  if (d.error || d.status === undefined) {\n    return { status: 'failed', error: d.error?.message || JSON.stringify(d) };\n  }\n  return {\n    status: d.status,\n    episode_id: d.episode_id,\n    original_clip: d.original_clip,\n    rendered_clip: d.rendered_clip,\n    steps: d.steps,\n    duration_seconds: d.duration_seconds\n  };\n});\nconst succeeded = results.filter(r => r.status === 'done');\nconst failed = results.filter(r => r.status !== 'done');\nconsole.log(`Done: ${succeeded.length} succeeded, ${failed.length} failed`);\nreturn [{ json: { summary: { total: results.length, succeeded: succeeded.length, failed: failed.length }, rendered_clips: succeeded, failed_clips: failed } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 384],
+      "id": "ab28faa7-a41d-4a23-91c9-34ffb8cf95ed",
+      "name": "Collect Results"
+    }
+  ],
+  "connections": {
+    "Chalchitra Webhook": { "main": [[{ "node": "Transcribe", "type": "main", "index": 0 }]] },
+    "Transcribe":         { "main": [[{ "node": "Enrich", "type": "main", "index": 0 }]] },
+    "Enrich":             { "main": [[{ "node": "Detect", "type": "main", "index": 0 }]] },
+    "Detect":             { "main": [[{ "node": "FFmpeg", "type": "main", "index": 0 }]] },
+    "FFmpeg":             { "main": [[{ "node": "Split Clips", "type": "main", "index": 0 }]] },
+    "Split Clips":        { "main": [[{ "node": "Filter Valid Clips", "type": "main", "index": 0 }]] },
+    "Filter Valid Clips": { "main": [[{ "node": "Renderer", "type": "main", "index": 0 }]] },
+    "Renderer":           { "main": [[{ "node": "Collect Results", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "15daf1933d30c278f79afac7026e428ae8ea11a7072f3a131f40233d8e9a8b45"
+  }
+}

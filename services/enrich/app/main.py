@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import anthropic
-import json
 import os
+import json
 
 app = FastAPI()
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
 
 class EnrichRequest(BaseModel):
@@ -21,38 +21,38 @@ def health():
 @app.post("/enrich")
 def enrich(req: EnrichRequest):
     if not req.transcript.strip():
-        raise HTTPException(status_code=400, detail="Transcript is empty")
+        raise HTTPException(400, "Empty transcript")
 
-    prompt = f"""You are a podcast metadata generator.
+    prompt = f"""You are a viral social media content strategist.
 
-Given this transcript, return ONLY a JSON object with these fields:
-- title: catchy episode title (string)
-- show_notes: 2-3 sentence summary (string)
-- tags: list of 5 relevant tags (array of strings)
-- chapters: list of chapters, each with "title" and "start_time" in seconds (array of objects)
+Given this transcript, extract metadata to help create viral short-form clips.
 
 Transcript:
-{req.transcript[:6000]}
+{req.transcript[:4000]}
 
-Return ONLY valid JSON. No explanation, no markdown, no backticks."""
+Return ONLY valid JSON (no markdown, no explanation):
+{{
+  "title": "catchy overall title for the content",
+  "topic": "main topic in 3-5 words",
+  "hook": "most compelling opening line or idea",
+  "key_points": ["point 1", "point 2", "point 3"],
+  "target_audience": "who this is for",
+  "tone": "educational|motivational|entertaining|informational"
+}}"""
 
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    text = message.content[0].text.strip()
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="LLM returned invalid JSON")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Enrich failed: {str(e)}")
+        data = json.loads(text)
+    except Exception:
+        data = {"raw": text}
 
     return {
         "episode_id": req.episode_id,
-        "title": data.get("title"),
-        "show_notes": data.get("show_notes"),
-        "tags": data.get("tags", []),
-        "chapters": data.get("chapters", []),
+        "enrichment": data,
     }

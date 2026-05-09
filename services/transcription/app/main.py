@@ -1,34 +1,24 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-import whisper
 import os
 
+# Fix OpenBLAS deadlock on ARM/Apple Silicon BEFORE importing torch/whisper
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+import whisper
+
 app = FastAPI()
+
+print("Loading Whisper model...")
 model = whisper.load_model("base")
+print("Whisper model loaded.")
 
 
 class TranscribeRequest(BaseModel):
-    file_path: str
     episode_id: str
-    language: Optional[str] = None   # None = auto-detect
-    task: str = "translate"          # "translate" → always outputs English
-
-
-def _build_srt(segments: list) -> str:
-    def fmt(seconds: float) -> str:
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        s = int(seconds % 60)
-        ms = int((seconds % 1) * 1000)
-        return f"{h:02}:{m:02}:{s:02},{ms:03}"
-    lines = []
-    for i, seg in enumerate(segments, start=1):
-        lines.append(str(i))
-        lines.append(f"{fmt(seg['start'])} --> {fmt(seg['end'])}")
-        lines.append(seg["text"].strip())
-        lines.append("")
-    return "\n".join(lines)
+    file_path: str
 
 
 @app.get("/")
@@ -40,30 +30,41 @@ def health():
 def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
-    try:
-        kwargs = {"word_timestamps": True, "task": req.task}
-        if req.language:
-            kwargs["language"] = req.language
-        result = model.transcribe(req.file_path, **kwargs)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Whisper failed: {str(e)}")
 
-    segments = result.get("segments", [])
+    result = model.transcribe(req.file_path, word_timestamps=True)
+
     words = []
-    for seg in segments:
-        for w in seg.get("words", []):
-            words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
+    for segment in result.get("segments", []):
+        for w in segment.get("words", []):
+            words.append({
+                "word": w["word"].strip(),
+                "start": round(w["start"], 3),
+                "end": round(w["end"], 3),
+            })
 
-    srt = _build_srt(segments)
-    srt_path = os.path.splitext(req.file_path)[0] + ".srt"
-    with open(srt_path, "w", encoding="utf-8") as f:
-        f.write(srt)
+    srt_lines = []
+    for i, segment in enumerate(result.get("segments", []), 1):
+        start = segment["start"]
+        end = segment["end"]
+        text = segment["text"].strip()
+        srt_lines.append(
+            f"{i}\n"
+            f"{format_time(start)} --> {format_time(end)}\n"
+            f"{text}\n"
+        )
+    srt = "\n".join(srt_lines)
 
     return {
         "episode_id": req.episode_id,
         "text": result["text"],
-        "duration": segments[-1]["end"] if segments else 0,
         "words": words,
         "srt": srt,
-        "srt_path": srt_path,
     }
+
+
+def format_time(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{h:02}:{m:02}:{s:02},{ms:03}"

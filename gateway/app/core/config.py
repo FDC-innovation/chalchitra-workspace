@@ -1,19 +1,17 @@
 from pydantic_settings import BaseSettings
 from pathlib import Path
 
+
 class Settings(BaseSettings):
     UPLOAD_DIR: Path = Path("/app/data")
-    OUTPUT_DIR: Path = Path("/app/data")
-    WHISPER_MODEL: str = "base"
-    WHISPER_DEVICE: str = "cpu"
-    MAX_CLIPS: int = 3
-    ENABLE_RENDER: bool = True
+    DATABASE_URL: str = "sqlite:////app/data/chalchitra.db"
     ANTHROPIC_API_KEY: str = ""
-    OLLAMA_URL: str = "http://ollama:11434"
-    LLM_BACKEND: str = "ollama"
+    N8N_WEBHOOK_URL: str = "http://n8n:5678/webhook-test/chalchitra"
 
     class Config:
         env_file = ".env"
-        extra = "allow"
+        extra = "ignore"
+
 
 settings = Settings()
+settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
