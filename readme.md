@@ -49,17 +49,17 @@ Upload video
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Python 3.10 / 3.11 |
-| API Framework | FastAPI + Uvicorn |
-| Transcription | OpenAI Whisper (base, CPU) |
-| LLM | Anthropic Claude Sonnet |
-| Video Processing | FFmpeg |
-| Rendering | Pillow + FFmpeg |
-| Orchestration | n8n |
-| Containerization | Docker + Docker Compose |
-| Database | SQLite via SQLModel |
+| Layer            | Technology                 |
+| ---------------- | -------------------------- |
+| Language         | Python 3.10 / 3.11         |
+| API Framework    | FastAPI + Uvicorn          |
+| Transcription    | OpenAI Whisper (base, CPU) |
+| LLM              | Anthropic Claude Sonnet    |
+| Video Processing | FFmpeg                     |
+| Rendering        | Pillow + FFmpeg            |
+| Orchestration    | n8n                        |
+| Containerization | Docker + Docker Compose    |
+| Database         | SQLite via SQLModel        |
 
 ---
 
@@ -150,16 +150,16 @@ ls shared/volumes/*rendered*
 
 ## API Reference
 
-| Service | Endpoint | Method | Description |
-|---------|----------|--------|-------------|
-| Gateway | `/api/upload/` | POST | Upload media file |
-| Gateway | `/api/episodes/` | GET | List all episodes |
-| Gateway | `/health` | GET | Health check |
-| Transcription | `/transcribe` | POST | Transcribe file |
-| Enrich | `/enrich` | POST | Generate metadata |
-| Detect | `/detect` | POST | Find viral clips |
-| FFmpeg | `/ffmpeg` | POST | Cut video clips |
-| Renderer | `/render` | POST | Render final clip |
+| Service       | Endpoint         | Method | Description       |
+| ------------- | ---------------- | ------ | ----------------- |
+| Gateway       | `/api/upload/`   | POST   | Upload media file |
+| Gateway       | `/api/episodes/` | GET    | List all episodes |
+| Gateway       | `/health`        | GET    | Health check      |
+| Transcription | `/transcribe`    | POST   | Transcribe file   |
+| Enrich        | `/enrich`        | POST   | Generate metadata |
+| Detect        | `/detect`        | POST   | Find viral clips  |
+| FFmpeg        | `/ffmpeg`        | POST   | Cut video clips   |
+| Renderer      | `/render`        | POST   | Render final clip |
 
 ---
 
@@ -172,6 +172,7 @@ Chalchitra Webhook → Transcribe → Enrich → Detect → FFmpeg → Split Cli
 ```
 
 **Timeouts configured:**
+
 - Transcribe: 9999999ms (unlimited — Whisper on CPU is slow)
 - FFmpeg: 300000ms (5 min)
 - Renderer: 600000ms (10 min)
@@ -181,6 +182,7 @@ Chalchitra Webhook → Transcribe → Enrich → Detect → FFmpeg → Split Cli
 ## Renderer Output
 
 Each final clip includes:
+
 - **9:16 reframe** — cropped and padded for Shorts/Reels
 - **Animated captions** — word-by-word yellow highlight
 - **Intro card** — 2s black card with title (yellow first line)
@@ -214,4 +216,4 @@ Built by [FDC Innovation Labs](https://github.com/FDC-innovation)
 
 ---
 
-*Chalchitra — From raw video to publish-ready content, automatically.*
+_Chalchitra — From raw video to publish-ready content, automatically._
