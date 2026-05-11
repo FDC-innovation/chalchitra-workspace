@@ -25,9 +25,8 @@ def detect(req: DetectRequest):
     if not req.transcript.strip():
         raise HTTPException(400, "Empty transcript")
 
-    # Estimate total duration from transcript length
     word_count = len(req.transcript.split())
-    estimated_duration = word_count / 2.5  # ~2.5 words per second
+    estimated_duration = word_count / 2.5
 
     prompt = f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
 
@@ -58,14 +57,13 @@ Return ONLY valid JSON, no markdown, no explanation:
 }}"""
 
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-20250514",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}]
     )
 
     text = message.content[0].text.strip()
 
-    # Strip markdown fences if present
     if "```" in text:
         parts = text.split("```")
         for part in parts:
@@ -82,7 +80,6 @@ Return ONLY valid JSON, no markdown, no explanation:
     except Exception:
         raise HTTPException(500, f"Failed to parse Claude response: {text[:300]}")
 
-    # Validate — be lenient with duration (15-90s)
     valid_clips = []
     for clip in clips:
         start = float(clip.get("start_seconds", 0))
@@ -96,7 +93,6 @@ Return ONLY valid JSON, no markdown, no explanation:
                 "reason": clip.get("reason", ""),
             })
 
-    # Last resort: if still nothing, make one clip from the whole thing
     if not valid_clips:
         clip_end = min(60, estimated_duration)
         if clip_end >= 15:
@@ -110,7 +106,6 @@ Return ONLY valid JSON, no markdown, no explanation:
     if not valid_clips:
         raise HTTPException(500, "Video too short to create clips (minimum 15 seconds needed)")
 
-    # Cap at 4
     valid_clips = valid_clips[:4]
 
     return {

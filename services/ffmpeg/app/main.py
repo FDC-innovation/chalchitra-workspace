@@ -5,6 +5,8 @@ import os
 
 app = FastAPI()
 
+MAX_CLIP_DURATION = 90
+
 
 class ClipRequest(BaseModel):
     episode_id: str
@@ -29,18 +31,18 @@ def generate_clips(req: ClipRequest):
         start = clip.get("start_seconds", 0)
         end = clip.get("end_seconds", 30)
         title = clip.get("title", f"clip_{i}")
-        duration = end - start
+        duration = min(end - start, MAX_CLIP_DURATION)
 
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:40]
         output_path = os.path.join(output_dir, f"{req.episode_id}_clip{i}_{safe_title}.mp4")
 
-        # -ss AFTER -i = frame-accurate cut, no broken seek tables
         cmd = [
             "ffmpeg", "-y",
             "-i", req.file_path,
             "-ss", str(start),
             "-t", str(duration),
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-r", "30",
             "-c:a", "aac", "-ar", "44100",
             "-avoid_negative_ts", "make_zero",
             "-movflags", "+faststart",
@@ -49,19 +51,15 @@ def generate_clips(req: ClipRequest):
 
         try:
             subprocess.run(cmd, check=True, capture_output=True)
-
-            # Validate output is seekable
             probe = subprocess.run(
                 ["ffprobe", "-v", "quiet", "-show_entries",
                  "format=duration", "-of", "csv=p=0", output_path],
                 capture_output=True, text=True
             )
             if probe.returncode != 0 or not probe.stdout.strip():
-                generated.append({**clip, "status": "failed",
-                                   "error": "Output not seekable"})
+                generated.append({**clip, "status": "failed", "error": "Output not seekable"})
             else:
                 generated.append({**clip, "file_path": output_path, "status": "done"})
-
         except subprocess.CalledProcessError as e:
             generated.append({**clip, "status": "failed", "error": e.stderr.decode()})
 

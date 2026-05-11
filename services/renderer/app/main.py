@@ -69,8 +69,6 @@ def find_font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-# ─── Reframe to 9:16 ─────────────────────────────────────────────────────────
-
 def reframe_to_9x16(input_path: str, output_path: str):
     vf = (
         "scale=1080:-2:flags=lanczos,"
@@ -80,6 +78,7 @@ def reframe_to_9x16(input_path: str, output_path: str):
     run_cmd([
         "ffmpeg", "-y", "-i", input_path,
         "-vf", vf,
+        "-r", "30",
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
         "-profile:v", "baseline", "-level", "3.0",
         "-c:a", "aac", "-ar", "44100",
@@ -89,17 +88,12 @@ def reframe_to_9x16(input_path: str, output_path: str):
     ], "Reframe")
 
 
-# ─── Intro card (2s solid black with title) ──────────────────────────────────
-
 def make_intro_card(title: str, width: int, height: int,
                     fps: int, duration: float, output_path: str):
-    """2 second black card with big bold title centered, 1-2 words per line."""
     font_large = find_font(96)
-    font_small = find_font(64)
     total_frames = int(duration * fps)
     frame_dir = tempfile.mkdtemp(prefix="intro_")
 
-    # Split title into lines of max 2 words
     words = title.split()
     lines = []
     for i in range(0, len(words), 2):
@@ -108,7 +102,6 @@ def make_intro_card(title: str, width: int, height: int,
     try:
         for frame_idx in range(total_frames):
             t = frame_idx / fps
-            # Fade in 0-0.3s, hold, fade out last 0.3s
             if t < 0.3:
                 alpha = int(255 * t / 0.3)
             elif t > duration - 0.3:
@@ -120,7 +113,6 @@ def make_intro_card(title: str, width: int, height: int,
             img = Image.new("RGB", (width, height), (0, 0, 0))
             draw = ImageDraw.Draw(img)
 
-            # Draw each line centered
             line_height = 110
             total_text_h = len(lines) * line_height
             start_y = (height - total_text_h) // 2
@@ -128,23 +120,18 @@ def make_intro_card(title: str, width: int, height: int,
             for i, line in enumerate(lines):
                 bbox = draw.textbbox((0, 0), line, font=font_large)
                 lw = bbox[2] - bbox[0]
-                lh = bbox[3] - bbox[1]
                 x = (width - lw) // 2
                 y = start_y + i * line_height
 
-                # Yellow accent on first line, white on rest
-                color_r = int((255 if i == 0 else 255) * alpha / 255)
+                color_r = int(255 * alpha / 255)
                 color_g = int((230 if i == 0 else 255) * alpha / 255)
                 color_b = int((0 if i == 0 else 255) * alpha / 255)
 
-                # Shadow
-                draw.text((x+4, y+4), line, font=font_large,
-                          fill=(0, 0, 0))
+                draw.text((x+4, y+4), line, font=font_large, fill=(0, 0, 0))
                 draw.text((x, y), line, font=font_large,
                           fill=(color_r, color_g, color_b))
 
-            frame_path = os.path.join(frame_dir, f"frame_{frame_idx:06d}.png")
-            img.save(frame_path, "PNG")
+            img.save(os.path.join(frame_dir, f"frame_{frame_idx:06d}.png"), "PNG")
 
         run_cmd([
             "ffmpeg", "-y",
@@ -160,15 +147,11 @@ def make_intro_card(title: str, width: int, height: int,
         shutil.rmtree(frame_dir, ignore_errors=True)
 
 
-# ─── Outro card (3s solid black with channel + CTA) ──────────────────────────
-
 def make_outro_card(channel_name: str, cta_text: str,
                     width: int, height: int,
                     fps: int, duration: float, output_path: str):
-    """3 second black card with channel name + follow CTA."""
     font_channel = find_font(100)
     font_cta = find_font(56)
-    font_small = find_font(44)
     total_frames = int(duration * fps)
     frame_dir = tempfile.mkdtemp(prefix="outro_")
 
@@ -186,36 +169,30 @@ def make_outro_card(channel_name: str, cta_text: str,
             img = Image.new("RGB", (width, height), (0, 0, 0))
             draw = ImageDraw.Draw(img)
 
-            # Channel name — yellow, centered
             cb = draw.textbbox((0, 0), channel_name, font=font_channel)
             cw = cb[2] - cb[0]
             ch = cb[3] - cb[1]
             cx = (width - cw) // 2
             cy = height // 2 - ch - 30
 
-            draw.text((cx+4, cy+4), channel_name, font=font_channel,
-                      fill=(0, 0, 0))
+            draw.text((cx+4, cy+4), channel_name, font=font_channel, fill=(0, 0, 0))
             draw.text((cx, cy), channel_name, font=font_channel,
                       fill=(int(255*alpha/255), int(230*alpha/255), 0))
 
-            # Divider line
             line_y = height // 2 + 10
             draw.rectangle([width//4, line_y, 3*width//4, line_y+3],
-                           fill=(255, 255, 255, alpha))
+                           fill=(255, 255, 255))
 
-            # CTA text — white
             ctb = draw.textbbox((0, 0), cta_text, font=font_cta)
             ctw = ctb[2] - ctb[0]
             ctx = (width - ctw) // 2
             cty = height // 2 + 40
 
-            draw.text((ctx+3, cty+3), cta_text, font=font_cta,
-                      fill=(0, 0, 0))
+            draw.text((ctx+3, cty+3), cta_text, font=font_cta, fill=(0, 0, 0))
             draw.text((ctx, cty), cta_text, font=font_cta,
                       fill=(int(255*alpha/255), int(255*alpha/255), int(255*alpha/255)))
 
-            frame_path = os.path.join(frame_dir, f"frame_{frame_idx:06d}.png")
-            img.save(frame_path, "PNG")
+            img.save(os.path.join(frame_dir, f"frame_{frame_idx:06d}.png"), "PNG")
 
         run_cmd([
             "ffmpeg", "-y",
@@ -230,8 +207,6 @@ def make_outro_card(channel_name: str, cta_text: str,
     finally:
         shutil.rmtree(frame_dir, ignore_errors=True)
 
-
-# ─── Caption overlay frames ───────────────────────────────────────────────────
 
 def draw_word_frame(word_text: str, width: int, height: int,
                     font: ImageFont.FreeTypeFont) -> Image.Image:
@@ -303,8 +278,6 @@ def burn_captions_onto_video(
     ], "Burn captions")
 
 
-# ─── Concat intro + main + outro ─────────────────────────────────────────────
-
 def concat_videos(intro: str, main: str, outro: str,
                   output_path: str, tmp_dir: str):
     list_file = os.path.join(tmp_dir, "concat.txt")
@@ -327,8 +300,6 @@ def concat_videos(intro: str, main: str, outro: str,
     ], "Concat")
 
 
-# ─── Main endpoint ────────────────────────────────────────────────────────────
-
 @app.post("/render")
 def render_clip(req: RenderRequest):
     if not os.path.exists(req.clip_path):
@@ -348,16 +319,14 @@ def render_clip(req: RenderRequest):
 
     steps_done = []
     tmp_dir = tempfile.mkdtemp(prefix="render_tmp_")
-    FPS = 25
+    FPS = 30
     W, H = 1080, 1920
 
     try:
-        # Step 1 — Reframe
         reframed = os.path.join(tmp_dir, "reframed.mp4")
         reframe_to_9x16(req.clip_path, reframed)
         steps_done.append("reframe")
 
-        # Step 2 — Burn captions onto reframed video
         captioned = os.path.join(tmp_dir, "captioned.mp4")
         if req.words:
             frame_dir = os.path.join(tmp_dir, "cap_frames")
@@ -375,11 +344,9 @@ def render_clip(req: RenderRequest):
         else:
             shutil.copy2(reframed, captioned)
 
-        # Step 3 — Make intro card (2s)
         intro_card = os.path.join(tmp_dir, "intro.mp4")
         make_intro_card(req.title, W, H, FPS, 2.0, intro_card)
 
-        # Add silent audio to intro card
         intro_with_audio = os.path.join(tmp_dir, "intro_audio.mp4")
         run_cmd([
             "ffmpeg", "-y",
@@ -390,11 +357,9 @@ def render_clip(req: RenderRequest):
             intro_with_audio
         ], "Intro audio")
 
-        # Step 4 — Make outro card (3s)
         outro_card = os.path.join(tmp_dir, "outro.mp4")
         make_outro_card(req.channel_name, req.cta_text, W, H, FPS, 3.0, outro_card)
 
-        # Add silent audio to outro card
         outro_with_audio = os.path.join(tmp_dir, "outro_audio.mp4")
         run_cmd([
             "ffmpeg", "-y",
@@ -407,7 +372,6 @@ def render_clip(req: RenderRequest):
 
         steps_done.append("cards")
 
-        # Step 5 — Concat intro + captioned + outro
         final = os.path.join(episode_dir, safe_title + "_final.mp4")
         concat_videos(intro_with_audio, captioned, outro_with_audio, final, tmp_dir)
         steps_done.append("concat")
