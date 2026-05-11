@@ -7,7 +7,7 @@ services:
     ports:
       - "8001:8001"
     volumes:
-      - ./shared/volumes:/app/data
+      - ./shared/volumes:/app/shared/volumes
       - whisper_cache:/root/.cache/whisper
     restart: unless-stopped
     networks:
@@ -65,7 +65,7 @@ services:
     ports:
       - "8004:8004"
     volumes:
-      - ./shared/volumes:/app/data
+      - ./shared/volumes:/app/shared/volumes
     restart: unless-stopped
     networks:
       - chalchitra
@@ -84,7 +84,7 @@ services:
     ports:
       - "8006:8006"
     volumes:
-      - ./shared/volumes:/app/data
+      - ./shared/volumes:/app/shared/volumes
     restart: unless-stopped
     shm_size: "256mb"
     networks:
@@ -107,22 +107,42 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
-  n8n:
-    image: n8nio/n8n
-    container_name: chalchitra-n8n
+  silence_detector:
+    build: ./services/silence_detector
     ports:
-      - "5678:5678"
-    restart: unless-stopped
+      - "8008:8008"
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
     networks:
       - chalchitra
+
+  auto_editor:
+    build: ./services/auto_editor
+    ports:
+      - "8010:8010"
     volumes:
-      - n8n_data:/home/node/.n8n
-      - ./shared/volumes:/app/data
+      - ./shared/volumes:/app/shared/volumes
+    networks:
+      - chalchitra
+
+  orchestrator:
+    build: ./orchestrator
+    ports:
+      - "8007:8007"
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=false
-      - WEBHOOK_URL=http://localhost:5678
-      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
-      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
+    networks:
+      - chalchitra
+    depends_on:
+      - transcription
+      - enrich
+      - detect
+      - ffmpeg
+      - renderer
+      - silence_detector
+      - auto_editor
 
   gateway:
     build: ./gateway
@@ -130,7 +150,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./shared/volumes:/app/data
+      - ./shared/volumes:/app/shared/volumes
     env_file:
       - .env
     restart: unless-stopped
@@ -149,7 +169,7 @@ services:
         condition: service_healthy
       ollama:
         condition: service_started
-      n8n:
+      orchestrator:
         condition: service_started
     environment:
       - OLLAMA_URL=http://ollama:11434
@@ -160,7 +180,7 @@ services:
       - DETECT_URL=http://detect:8003
       - FFMPEG_URL=http://ffmpeg:8004
       - RENDERER_URL=http://renderer:8006
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook-test/chalchitra
+      - ORCHESTRATOR_URL=http://orchestrator:8007/pipeline/start
 
 networks:
   chalchitra:
@@ -168,5 +188,4 @@ networks:
 
 volumes:
   ollama_data:
-  n8n_data:
   whisper_cache:

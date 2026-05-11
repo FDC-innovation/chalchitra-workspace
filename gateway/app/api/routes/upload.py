@@ -9,7 +9,7 @@ logger = logging.getLogger("chalchitra")
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".webm", ".mkv", ".mov"}
-N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "http://n8n:5678/webhook-test/chalchitra")
+ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://orchestrator:8007/pipeline/start")
 
 
 @router.post("/")
@@ -38,8 +38,8 @@ async def upload_media(
 
     session.commit()
 
-    logger.info(f"[upload] episode={episode_id} → triggering n8n at {N8N_WEBHOOK_URL}")
-    background_tasks.add_task(trigger_n8n, episode_id, dest_path)
+    logger.info(f"[upload] episode={episode_id} → triggering orchestrator at {ORCHESTRATOR_URL}")
+    background_tasks.add_task(trigger_pipeline, episode_id, dest_path)
 
     return {
         "episode_id": episode_id,
@@ -48,15 +48,15 @@ async def upload_media(
     }
 
 
-async def trigger_n8n(episode_id: str, file_path: str):
+async def trigger_pipeline(episode_id: str, file_path: str):
     payload = {"episode_id": episode_id, "file_path": file_path}
-    logger.info(f"[n8n] POST {N8N_WEBHOOK_URL} payload={payload}")
+    logger.info(f"[orchestrator] POST {ORCHESTRATOR_URL} payload={payload}")
     try:
         async with httpx.AsyncClient(timeout=600) as client:
-            r = await client.post(N8N_WEBHOOK_URL, json=payload)
+            r = await client.post(ORCHESTRATOR_URL, json=payload)
             r.raise_for_status()
-            logger.info(f"[n8n] {r.status_code}: {r.text[:300]}")
+            logger.info(f"[orchestrator] {r.status_code}: {r.text[:300]}")
     except httpx.HTTPStatusError as e:
-        logger.error(f"[n8n] HTTP {e.response.status_code}: {e.response.text[:300]}")
+        logger.error(f"[orchestrator] HTTP {e.response.status_code}: {e.response.text[:300]}")
     except Exception as e:
-        logger.error(f"[n8n] failed: {e}")
+        logger.error(f"[orchestrator] failed: {e}")

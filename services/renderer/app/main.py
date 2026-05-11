@@ -309,7 +309,7 @@ def render_clip(req: RenderRequest):
 
     safe_title = "".join(
         c if c.isalnum() or c in "-_" else "_" for c in req.title)[:40]
-    episode_dir = os.path.join("/app/data", req.episode_id)
+    episode_dir = os.path.join("/app/shared/volumes", req.episode_id)
     os.makedirs(episode_dir, exist_ok=True)
 
     duration = get_clip_duration(req.clip_path)
