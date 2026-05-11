@@ -1,0 +1,8 @@
+.env
+shared/volumes/*.mp4
+shared/volumes/*.srt
+shared/volumes/*.png
+__pycache__/
+*.pyc
+.DS_Store
+*.db
