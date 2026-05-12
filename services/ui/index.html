@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chalchitra — Pipeline Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #1e1e1e;
+    --border-bright: #2a2a2a;
+    --text: #e8e8e8;
+    --muted: #555;
+    --accent: #f5c518;
+    --accent-dim: rgba(245,197,24,0.1);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.1);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.1);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+
+  .logo span { color: var(--text); }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-bright);
+    border-radius: 2px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+    margin-left: auto;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-label { color: var(--muted); font-size: 11px; }
+
+  /* LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: calc(100vh - 57px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    border-bottom: 1px solid var(--border);
+    padding: 20px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 1px dashed var(--border-bright);
+    border-radius: 4px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag { 
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .upload-zone input { 
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%;
+  }
+
+  .upload-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .upload-text { color: var(--muted); line-height: 1.6; }
+  .upload-text strong { color: var(--text); display: block; margin-bottom: 4px; }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 500;
+  }
+
+  .btn-primary:hover { background: #ffd700; }
+  .btn-primary:disabled { background: #333; color: var(--muted); cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+  }
+
+  .btn-ghost:hover { border-color: var(--text); }
+
+  .btn-danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+  .btn-success {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(34,197,94,0.2);
+  }
+
+  .btn-success:hover { background: rgba(34,197,94,0.2); }
+
+  /* EPISODE LIST */
+  .episode-item {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .episode-item:hover { border-color: var(--border-bright); }
+  .episode-item.active { border-color: var(--accent); background: var(--accent-dim); }
+
+  .ep-id {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ep-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 2px;
+  }
+
+  .ep-status.awaiting { background: var(--accent-dim); color: var(--accent); }
+  .ep-status.completed { background: var(--green-dim); color: var(--green); }
+  .ep-status.running { background: var(--blue-dim); color: var(--blue); }
+  .ep-status.failed { background: var(--red-dim); color: var(--red); }
+
+  /* MAIN PANEL */
+  .main {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* PIPELINE VIZ */
+  .pipeline-bar {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .pipe-step {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .pipe-node {
+    padding: 5px 12px;
+    border: 1px solid var(--border-bright);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: all 0.3s;
+  }
+
+  .pipe-node.done { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .pipe-node.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); animation: glow 1.5s infinite; }
+  .pipe-node.pending { color: var(--muted); }
+  .pipe-node.paused { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(245,197,24,0); }
+    50% { box-shadow: 0 0 12px rgba(245,197,24,0.3); }
+  }
+
+  .pipe-arrow {
+    width: 24px;
+    height: 1px;
+    background: var(--border-bright);
+    position: relative;
+  }
+
+  .pipe-arrow::after {
+    content: '▶';
+    position: absolute;
+    right: -5px;
+    top: -5px;
+    font-size: 9px;
+    color: var(--border-bright);
+  }
+
+  /* CONTENT AREA */
+  .content { padding: 28px; flex: 1; }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* CLIPS GRID */
+  .clips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .clip-card {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .clip-card.selected { border-color: var(--accent); }
+  .clip-card.rejected { opacity: 0.4; border-color: var(--red); }
+
+  .clip-card-header {
+    padding: 12px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .clip-checkbox {
+    width: 16px; height: 16px;
+    border: 1px solid var(--border-bright);
+    border-radius: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .clip-checkbox.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-size: 10px;
+  }
+
+  .clip-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .clip-body { padding: 12px 14px; }
+
+  .clip-meta {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .clip-time {
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 2px 7px;
+    border-radius: 2px;
+  }
+
+  .clip-reason {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* METADATA PANEL */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .meta-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+  }
+
+  .meta-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .meta-value {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--blue-dim);
+    border: 1px solid rgba(96,165,250,0.15);
+    border-radius: 2px;
+    color: var(--blue);
+  }
+
+  /* RENDERED OUTPUT */
+  .output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .output-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .output-thumb {
+    aspect-ratio: 9/16;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: var(--muted);
+    position: relative;
+  }
+
+  .output-info { padding: 10px 12px; }
+  .output-name { font-size: 11px; color: var(--text); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .output-size { font-size: 10px; color: var(--muted); }
+
+  /* LOG */
+  .log-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    font-size: 12px;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+    color: var(--muted);
+  }
+
+  .log-box .log-ok { color: var(--green); }
+  .log-box .log-warn { color: var(--accent); }
+  .log-box .log-err { color: var(--red); }
+  .log-box .log-info { color: var(--blue); }
+
+  /* INPUT */
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .empty-icon { font-size: 48px; opacity: 0.3; }
+
+  .divider { 
+    height: 1px; 
+    background: var(--border); 
+    margin: 20px 0; 
+  }
+
+  /* APPROVAL ACTIONS */
+  .approval-bar {
+    display: flex;
+    gap: 10px;
+    padding: 16px 28px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    bottom: 0;
+  }
+
+  .approval-bar .btn { width: auto; margin-top: 0; padding: 10px 20px; }
+
+  .sel-count {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .sel-count strong { color: var(--accent); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border-bright);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Chalchitra<span>.</span></div>
+  <div class="badge">Pipeline Console</div>
+  <div class="badge" id="api-badge">API: localhost:8007</div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <span class="status-label" id="api-status">checking...</span>
+    <div class="status-dot" id="status-dot" style="background:var(--muted);box-shadow:none;"></div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Upload -->
+    <div class="sidebar-section">
+      <div class="section-label">New Upload</div>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept=".mp4,.mp3,.wav,.m4a,.ogg,.webm,.mkv,.mov">
+        <span class="upload-icon">⬆</span>
+        <div class="upload-text">
+          <strong>Drop video or click</strong>
+          mp4, mp3, wav, m4a, webm
+        </div>
+      </div>
+      <div id="file-name" style="color:var(--muted);font-size:11px;margin-top:8px;text-align:center;"></div>
+      <button class="btn btn-primary" id="upload-btn" disabled>Start Pipeline</button>
+    </div>
+
+    <!-- Poll -->
+    <div class="sidebar-section">
+      <div class="section-label">Check Episode</div>
+      <input type="text" id="poll-id" placeholder="paste episode_id..." style="margin-bottom:8px;">
+      <button class="btn btn-ghost" onclick="pollEpisode()">Check Status</button>
+    </div>
+
+    <!-- Episode list -->
+    <div class="sidebar-section" style="flex:1;overflow-y:auto;">
+      <div class="section-label">Recent Episodes</div>
+      <div id="episode-list">
+        <div style="color:var(--muted);font-size:11px;">No episodes yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main-panel">
+    <div class="empty">
+      <div class="empty-icon">◈</div>
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;color:var(--text);">No episode selected</div>
+      <div>Upload a video or paste an episode ID to begin</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8007';
+const GATEWAY = 'http://localhost:8000';
+
+let episodes = JSON.parse(localStorage.getItem('chalchitra_episodes') || '[]');
+let currentEpisode = null;
+let pollTimer = null;
+
+// ── API Health ──────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/pipeline/status/health-check`).catch(() => null);
+    // Just check if orchestrator responds at all
+    const r2 = await fetch(`${API}/openapi.json`);
+    if (r2.ok) {
+      document.getElementById('api-status').textContent = 'connected';
+      document.getElementById('status-dot').style.background = 'var(--green)';
+      document.getElementById('status-dot').style.boxShadow = '0 0 8px var(--green)';
+    }
+  } catch {
+    document.getElementById('api-status').textContent = 'offline';
+    document.getElementById('status-dot').style.background = 'var(--red)';
+    document.getElementById('status-dot').style.boxShadow = 'none';
+  }
+}
+
+// ── Upload ──────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input');
+const uploadBtn = document.getElementById('upload-btn');
+const uploadZone = document.getElementById('upload-zone');
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) {
+    document.getElementById('file-name').textContent = fileInput.files[0].name;
+    uploadBtn.disabled = false;
+  }
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  fileInput.files = e.dataTransfer.files;
+  fileInput.dispatchEvent(new Event('change'));
+});
+
+uploadBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  uploadBtn.disabled = true;
+  uploadBtn.innerHTML = '<span class="spinner"></span> Uploading...';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch(`${GATEWAY}/api/upload/`, { method: 'POST', body: fd });
+    const data = await r.json();
+    const ep = {
+      id: data.episode_id,
+      file: data.file,
+      status: 'running',
+      created: new Date().toISOString()
+    };
+    episodes.unshift(ep);
+    saveEpisodes();
+    renderEpisodeList();
+    log(`✓ Uploaded. Episode: ${data.episode_id}`, 'ok');
+    loadEpisode(data.episode_id);
+    startPolling(data.episode_id);
+  } catch (e) {
+    log(`✗ Upload failed: ${e.message}`, 'err');
+  } finally {
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = 'Start Pipeline';
+    fileInput.value = '';
+    document.getElementById('file-name').textContent = '';
+  }
+});
+
+// ── Polling ─────────────────────────────────────────────────
+function startPolling(episodeId) {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const data = await fetchStatus(episodeId);
+    if (!data) return;
+    const status = data.state?.pipeline_status;
+    updateEpisodeStatus(episodeId, status);
+    if (currentEpisode === episodeId) renderMainPanel(data);
+    if (status === 'awaiting_approval' || status === 'completed') {
+      clearInterval(pollTimer);
+    }
+  }, 8000);
+}
+
+async function fetchStatus(id) {
+  try {
+    const r = await fetch(`${API}/pipeline/status/${id}`);
+    if (r.status === 404) {
+      updateEpisodeStatus(id, 'not_found');
+      return null;
+    }
+    return await r.json();
+  } catch { return null; }
+}
+
+async function pollEpisode() {
+  const id = document.getElementById('poll-id').value.trim();
+  if (!id) return;
+  if (!episodes.find(e => e.id === id)) {
+    episodes.unshift({ id, status: 'unknown', created: new Date().toISOString() });
+    saveEpisodes();
+    renderEpisodeList();
+  }
+  loadEpisode(id);
+}
+
+async function loadEpisode(id) {
+  currentEpisode = id;
+  document.querySelectorAll('.episode-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+
+  renderMainPanel(null, true);
+  const data = await fetchStatus(id);
+  if (data) {
+    updateEpisodeStatus(id, data.state?.pipeline_status);
+    renderEpisodeList();
+    renderMainPanel(data);
+    const status = data.state?.pipeline_status;
+    if (status === 'running' || (!status && data.next?.length)) {
+      startPolling(id);
+    }
+  }
+}
+
+// ── Render Main Panel ────────────────────────────────────────
+function renderMainPanel(data, loading = false) {
+  const main = document.getElementById('main-panel');
+
+  if (loading) {
+    main.innerHTML = `<div class="empty"><span class="spinner"></span><div style="margin-top:12px;color:var(--muted);">Loading...</div></div>`;
+    return;
+  }
+
+  if (!data) {
+    main.innerHTML = `<div class="empty"><div class="empty-icon">◈</div><div>Could not load episode</div></div>`;
+    return;
+  }
+
+  const state = data.state || {};
+  const status = state.pipeline_status || 'running';
+  const next = data.next || [];
+  const atInterrupt = data.at_interrupt;
+
+  const steps = ['transcribe','enrich','detect','ffmpeg','filter_clips','renderer'];
+  const doneSteps = getDoneSteps(state, next);
+
+  let html = '';
+
+  // Pipeline bar
+  html += `<div class="pipeline-bar">`;
+  steps.forEach((s, i) => {
+    const isDone = doneSteps.includes(s);
+    const isNext = next[0] === s;
+    const cls = isDone ? 'done' : isNext && atInterrupt ? 'paused' : isNext ? 'active' : 'pending';
+    const label = { transcribe:'Whisper', enrich:'Enrich', detect:'Detect', ffmpeg:'FFmpeg', filter_clips:'Filter', renderer:'Render' }[s];
+    html += `<div class="pipe-step"><div class="pipe-node ${cls}">${label}</div>`;
+    if (i < steps.length - 1) html += `<div class="pipe-arrow"></div>`;
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="content">`;
+
+  // Episode ID + status
+  html += `<div class="panel-title">
+    <span>${currentEpisode?.slice(0,8)}...</span>
+    <span class="ep-status ${status === 'awaiting_approval' ? 'awaiting' : status === 'completed' ? 'completed' : 'running'}">
+      ${status === 'awaiting_approval' ? '⏸ Awaiting Approval' : status === 'completed' ? '✓ Completed' : '⟳ Running'}
+    </span>
+  </div>`;
+
+  // METADATA
+  if (state.title || state.show_notes || state.tags) {
+    html += `<div class="section-label" style="margin-bottom:10px;">Enrichment</div>
+    <div class="meta-grid">`;
+    if (state.title) html += `<div class="meta-card" style="grid-column:1/-1"><div class="meta-label">Title</div><div class="meta-value" style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;">${state.title}</div></div>`;
+    if (state.show_notes) html += `<div class="meta-card"><div class="meta-label">Show Notes</div><div class="meta-value">${state.show_notes}</div></div>`;
+    if (state.tags?.length) {
+      html += `<div class="meta-card"><div class="meta-label">Tags</div><div class="tag-list">`;
+      state.tags.forEach(t => html += `<span class="tag">${t}</span>`);
+      html += `</div></div>`;
+    }
+    html += `</div><div class="divider"></div>`;
+  }
+
+  // CLIPS FOR APPROVAL
+  if (atInterrupt && state.cut_clips?.length) {
+    html += `<div class="section-label" style="margin-bottom:10px;">Review Clips — select which to render</div>
+    <div class="clips-grid" id="clips-grid">`;
+
+    state.cut_clips.forEach((clip, i) => {
+      const dur = Math.round(clip.end_seconds - clip.start_seconds);
+      html += `
+      <div class="clip-card selected" id="clip-${i}" data-index="${i}" onclick="toggleClip(${i})">
+        <div class="clip-card-header">
+          <div class="clip-checkbox checked" id="check-${i}">✓</div>
+          <div class="clip-title">${clip.title}</div>
+        </div>
+        <div class="clip-body">
+          <div class="clip-meta">
+            <span class="clip-time">${fmtTime(clip.start_seconds)} → ${fmtTime(clip.end_seconds)}</span>
+            <span class="clip-time" style="background:var(--blue-dim);color:var(--blue);">${dur}s</span>
+          </div>
+          <div class="clip-reason">${clip.reason}</div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+    html += `<div class="approval-bar">
+      <button class="btn btn-success" onclick="approveClips('${currentEpisode}')">▶ Approve & Render Selected</button>
+      <button class="btn btn-ghost" onclick="selectAll()">Select All</button>
+      <button class="btn btn-danger" onclick="rejectAll('${currentEpisode}')">✕ Reject All</button>
+      <div class="sel-count">Selected: <strong id="sel-count">${state.cut_clips.length}</strong> / ${state.cut_clips.length}</div>
+    </div>`;
+
+    // Store clips data for approval
+    window._currentClips = state.cut_clips;
+  }
+
+  // COMPLETED OUTPUT
+  if (status === 'completed') {
+    if (state.rendered_clips?.length) {
+      html += `<div class="section-label" style="margin-bottom:10px;">Rendered Output (${state.rendered_clips.length} clips)</div>
+      <div class="output-grid">`;
+      state.rendered_clips.forEach(clip => {
+        const name = clip.rendered_clip?.split('/').pop() || clip.title;
+        html += `<div class="output-card">
+          <div class="output-thumb">▶</div>
+          <div class="output-info">
+            <div class="output-name">${name}</div>
+            <div class="output-size">${fmtTime(clip.end_seconds - clip.start_seconds || 0)} duration</div>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    if (state.failed_clips?.length) {
+      html += `<div class="divider"></div><div class="section-label" style="color:var(--red);margin-bottom:10px;">Failed (${state.failed_clips.length})</div>`;
+      state.failed_clips.forEach(c => {
+        html += `<div style="padding:10px 12px;background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:3px;margin-bottom:8px;font-size:11px;color:var(--red);">${c.title}: ${c.error}</div>`;
+      });
+    }
+  }
+
+  // RUNNING STATE
+  if (status === 'running' || (!status && next.includes('transcribe'))) {
+    html += `<div style="display:flex;flex-direction:column;align-items:center;padding:40px;gap:12px;color:var(--muted);">
+      <span class="spinner" style="width:24px;height:24px;border-width:3px;"></span>
+      <div style="font-family:'Syne',sans-serif;color:var(--text);">Pipeline running</div>
+      <div style="font-size:11px;">Auto-refreshing every 8 seconds...</div>
+    </div>`;
+  }
+
+  html += `</div>`;
+  main.innerHTML = html;
+}
+
+// ── Clip Selection ───────────────────────────────────────────
+function toggleClip(i) {
+  const card = document.getElementById(`clip-${i}`);
+  const check = document.getElementById(`check-${i}`);
+  card.classList.toggle('selected');
+  card.classList.toggle('rejected');
+  check.classList.toggle('checked');
+  check.textContent = check.classList.contains('checked') ? '✓' : '';
+  updateSelCount();
+}
+
+function selectAll() {
+  document.querySelectorAll('.clip-card').forEach((c, i) => {
+    c.classList.add('selected'); c.classList.remove('rejected');
+    const ch = document.getElementById(`check-${i}`);
+    ch.classList.add('checked'); ch.textContent = '✓';
+  });
+  updateSelCount();
+}
+
+function updateSelCount() {
+  const n = document.querySelectorAll('.clip-card.selected').length;
+  const el = document.getElementById('sel-count');
+  if (el) el.textContent = n;
+}
+
+// ── Approve / Reject ─────────────────────────────────────────
+async function approveClips(episodeId) {
+  const clips = window._currentClips || [];
+  const selected = [];
+  document.querySelectorAll('.clip-card').forEach((card, i) => {
+    if (card.classList.contains('selected')) selected.push(clips[i]);
+  });
+
+  if (!selected.length) { log('No clips selected', 'warn'); return; }
+
+  const btn = document.querySelector('.approval-bar .btn-success');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+  try {
+    const r = await fetch(`${API}/pipeline/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        episode_id: episodeId,
+        approved_clips: selected,
+        human_feedback: 'approved via UI'
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Approve failed');
+    log(`✓ Approved ${selected.length} clips. Rendering...`, 'ok');
+    updateEpisodeStatus(episodeId, 'completed');
+    renderMainPanel(data);
+  } catch (e) {
+    log(`✗ ${e.message}`, 'err');
+    btn.disabled = false;
+    btn.textContent = '▶ Approve & Render Selected';
+  }
+}
+
+async function rejectAll(episodeId) {
+  if (!confirm('Reject all clips?')) return;
+  try {
+    await fetch(`${API}/pipeline/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ episode_id: episodeId, feedback: 'rejected via UI' })
+    });
+    log('All clips rejected.', 'warn');
+    updateEpisodeStatus(episodeId, 'rejected');
+  } catch (e) { log(`✗ ${e.message}`, 'err'); }
+}
+
+// ── Episode List ─────────────────────────────────────────────
+function renderEpisodeList() {
+  const el = document.getElementById('episode-list');
+  if (!episodes.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:11px;">No episodes yet.</div>`;
+    return;
+  }
+  el.innerHTML = episodes.slice(0, 20).map(ep => `
+    <div class="episode-item ${ep.id === currentEpisode ? 'active' : ''}" 
+         data-id="${ep.id}" onclick="loadEpisode('${ep.id}')">
+      <div class="ep-id">${ep.id}</div>
+      <span class="ep-status ${ep.status === 'awaiting_approval' ? 'awaiting' : ep.status === 'completed' ? 'completed' : ep.status === 'running' ? 'running' : 'running'}">
+        ${ep.status === 'awaiting_approval' ? '⏸ Review' : ep.status === 'completed' ? '✓ Done' : '⟳ Running'}
+      </span>
+    </div>
+  `).join('');
+}
+
+function updateEpisodeStatus(id, status) {
+  const ep = episodes.find(e => e.id === id);
+  if (ep) { ep.status = status; saveEpisodes(); renderEpisodeList(); }
+}
+
+function saveEpisodes() {
+  localStorage.setItem('chalchitra_episodes', JSON.stringify(episodes));
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+function getDoneSteps(state, next) {
+  const done = [];
+  if (state.transcript_text) done.push('transcribe');
+  if (state.detected_clips) { done.push('enrich'); done.push('detect'); }
+  if (state.cut_clips) done.push('ffmpeg');
+  if (state.cut_clips) done.push('filter_clips');
+  if (state.rendered_clips?.length || state.pipeline_status === 'completed') done.push('renderer');
+  return done;
+}
+
+function log(msg, type = 'info') {
+  console.log(`[chalchitra] ${msg}`);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 15000);
+renderEpisodeList();
+</script>
+</body>
+</html>

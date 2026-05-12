@@ -3,6 +3,7 @@ from typing import List, Optional
 import uuid
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
@@ -21,6 +22,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class StartRequest(BaseModel):
@@ -171,3 +179,4 @@ async def approve_podcast(request: PodcastApproveRequest):
     state = await app.state.podcast_graph.ainvoke(None, config=config)
 
     return {"episode_id": request.episode_id, "state": state}
+# (already handled below - see fix)
