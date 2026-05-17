@@ -142,6 +142,69 @@
   .upload-text { color: var(--muted); line-height: 1.6; }
   .upload-text strong { color: var(--text); display: block; margin-bottom: 4px; }
 
+  /* PIPELINE SELECTOR */
+  .pipeline-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 10px 0;
+  }
+
+  .pipeline-selector label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .pipeline-selector label:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .pipeline-selector input[type="radio"] {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    margin-top: 2px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .pipeline-selector input[type="radio"]:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 3px var(--surface);
+  }
+
+  .pipeline-selector label:has(input:checked) input[type="radio"] {
+    box-shadow: inset 0 0 0 3px var(--accent-dim);
+  }
+
+  .pipeline-selector span {
+    display: block;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .pipeline-selector small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
   /* BUTTONS */
   .btn {
     width: 100%;
@@ -570,6 +633,22 @@
         </div>
       </div>
       <div id="file-name" style="color:var(--muted);font-size:11px;margin-top:8px;text-align:center;"></div>
+      <div class="pipeline-selector">
+        <label>
+          <input type="radio" name="pipeline" value="clips" checked>
+          <div>
+            <span>Clips Pipeline</span>
+            <small>Extract viral short clips from any video</small>
+          </div>
+        </label>
+        <label>
+          <input type="radio" name="pipeline" value="podcast">
+          <div>
+            <span>Podcast Pipeline</span>
+            <small>Full podcast editing — silence removal, diarization, chapters</small>
+          </div>
+        </label>
+      </div>
       <button class="btn btn-primary" id="upload-btn" disabled>Start Pipeline</button>
     </div>
 
@@ -649,6 +728,7 @@ uploadZone.addEventListener('drop', e => {
 uploadBtn.addEventListener('click', async () => {
   const file = fileInput.files[0];
   if (!file) return;
+  const pipeline = document.querySelector('input[name="pipeline"]:checked').value;
 
   uploadBtn.disabled = true;
   uploadBtn.innerHTML = '<span class="spinner"></span> Uploading...';
@@ -663,11 +743,21 @@ uploadBtn.addEventListener('click', async () => {
       id: data.episode_id,
       file: data.file,
       status: 'running',
+      podcastMode: pipeline === 'podcast',
       created: new Date().toISOString()
     };
     episodes.unshift(ep);
     saveEpisodes();
     renderEpisodeList();
+
+    if (pipeline === 'podcast') {
+      await fetch(`${API}/podcast/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episode_id: data.episode_id, file_path: '/app/shared/volumes/' + data.file })
+      });
+    }
+
     log(`✓ Uploaded. Episode: ${data.episode_id}`, 'ok');
     loadEpisode(data.episode_id);
     startPolling(data.episode_id);
@@ -697,8 +787,10 @@ function startPolling(episodeId) {
 }
 
 async function fetchStatus(id) {
+  const ep = episodes.find(e => e.id === id);
+  const endpoint = ep?.podcastMode ? `${API}/podcast/status/${id}` : `${API}/pipeline/status/${id}`;
   try {
-    const r = await fetch(`${API}/pipeline/status/${id}`);
+    const r = await fetch(endpoint);
     if (r.status === 404) {
       updateEpisodeStatus(id, 'not_found');
       return null;
@@ -756,7 +848,16 @@ function renderMainPanel(data, loading = false) {
   const next = data.next || [];
   const atInterrupt = data.at_interrupt;
 
-  const steps = ['transcribe','enrich','detect','ffmpeg','filter_clips','renderer'];
+  const ep = episodes.find(e => e.id === currentEpisode);
+  const podcastMode = ep?.podcastMode || false;
+
+  const clipsSteps = ['transcribe','enrich','detect','ffmpeg','filter_clips','renderer'];
+  const clipsLabels = { transcribe:'Whisper', enrich:'Enrich', detect:'Detect', ffmpeg:'FFmpeg', filter_clips:'Filter', renderer:'Render' };
+  const podcastSteps = ['silence_removal','auto_edit','transcribe','diarize','enrich','structure','detect','renderer'];
+  const podcastLabels = { silence_removal:'Silence', auto_edit:'AutoEdit', transcribe:'Transcribe', diarize:'Diarize', enrich:'Enrich', structure:'Structure', detect:'Clips', renderer:'Render' };
+
+  const steps = podcastMode ? podcastSteps : clipsSteps;
+  const labels = podcastMode ? podcastLabels : clipsLabels;
   const doneSteps = getDoneSteps(state, next);
 
   let html = '';
@@ -767,8 +868,7 @@ function renderMainPanel(data, loading = false) {
     const isDone = doneSteps.includes(s);
     const isNext = next[0] === s;
     const cls = isDone ? 'done' : isNext && atInterrupt ? 'paused' : isNext ? 'active' : 'pending';
-    const label = { transcribe:'Whisper', enrich:'Enrich', detect:'Detect', ffmpeg:'FFmpeg', filter_clips:'Filter', renderer:'Render' }[s];
-    html += `<div class="pipe-step"><div class="pipe-node ${cls}">${label}</div>`;
+    html += `<div class="pipe-step"><div class="pipe-node ${cls}">${labels[s]}</div>`;
     if (i < steps.length - 1) html += `<div class="pipe-arrow"></div>`;
     html += `</div>`;
   });
@@ -823,7 +923,7 @@ function renderMainPanel(data, loading = false) {
 
     html += `</div>`;
     html += `<div class="approval-bar">
-      <button class="btn btn-success" onclick="approveClips('${currentEpisode}')">▶ Approve & Render Selected</button>
+      <button class="btn btn-success" onclick="approveClips('${currentEpisode}', ${podcastMode})">▶ Approve & Render Selected</button>
       <button class="btn btn-ghost" onclick="selectAll()">Select All</button>
       <button class="btn btn-danger" onclick="rejectAll('${currentEpisode}')">✕ Reject All</button>
       <div class="sel-count">Selected: <strong id="sel-count">${state.cut_clips.length}</strong> / ${state.cut_clips.length}</div>
@@ -901,7 +1001,7 @@ function updateSelCount() {
 }
 
 // ── Approve / Reject ─────────────────────────────────────────
-async function approveClips(episodeId) {
+async function approveClips(episodeId, podcastMode = false) {
   const clips = window._currentClips || [];
   const selected = [];
   document.querySelectorAll('.clip-card').forEach((card, i) => {
@@ -915,15 +1015,20 @@ async function approveClips(episodeId) {
   btn.innerHTML = '<span class="spinner"></span> Sending...';
 
   try {
-    const r = await fetch(`${API}/pipeline/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        episode_id: episodeId,
-        approved_clips: selected,
-        human_feedback: 'approved via UI'
-      })
-    });
+    let r;
+    if (podcastMode) {
+      r = await fetch(`${API}/podcast/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episode_id: episodeId, updates: { approved_clips: selected } })
+      });
+    } else {
+      r = await fetch(`${API}/pipeline/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episode_id: episodeId, approved_clips: selected, human_feedback: 'approved via UI' })
+      });
+    }
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Approve failed');
     log(`✓ Approved ${selected.length} clips. Rendering...`, 'ok');
