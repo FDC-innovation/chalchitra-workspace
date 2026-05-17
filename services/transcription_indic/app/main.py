@@ -2,11 +2,15 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from faster_whisper import WhisperModel
 import os
+import torch
 
 app = FastAPI()
 
-print("Loading Whisper medium model...", flush=True)
-model = WhisperModel("small", device="cpu", compute_type="int8")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+compute_type = "float16" if device == "cuda" else "int8"
+model_size = os.environ.get("WHISPER_MODEL", "small")
+print(f"Loading Whisper {model_size} on {device} ({compute_type})", flush=True)
+model = WhisperModel(model_size, device=device, compute_type=compute_type)
 print("Model loaded.", flush=True)
 
 class TranscribeRequest(BaseModel):

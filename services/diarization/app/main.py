@@ -1,4 +1,5 @@
 import os
+import torch
 import numpy as np
 import librosa
 from fastapi import FastAPI, HTTPException
@@ -8,8 +9,9 @@ from sklearn.cluster import KMeans
 
 app = FastAPI()
 
-print("Loading VoiceEncoder...", flush=True)
-encoder = VoiceEncoder("cpu")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Loading VoiceEncoder on {device}", flush=True)
+encoder = VoiceEncoder(device)
 print("VoiceEncoder ready.", flush=True)
 
 

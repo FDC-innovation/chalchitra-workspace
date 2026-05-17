@@ -7,12 +7,14 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
+import torch
 import whisper
 
 app = FastAPI()
 
-print("Loading Whisper model...")
-model = whisper.load_model("base")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Loading Whisper model on {device}...")
+model = whisper.load_model(os.environ.get("WHISPER_MODEL", "base"), device=device)
 print("Whisper model loaded.")
 
 
