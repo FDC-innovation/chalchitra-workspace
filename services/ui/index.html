@@ -839,12 +839,15 @@ function renderMainPanel(data, loading = false) {
       html += `<div class="section-label" style="margin-bottom:10px;">Rendered Output (${state.rendered_clips.length} clips)</div>
       <div class="output-grid">`;
       state.rendered_clips.forEach(clip => {
-        const name = clip.rendered_clip?.split('/').pop() || clip.title;
+        const filename = clip.rendered_clip?.split('/').pop() || '';
+        const name = filename || clip.title;
+        const episodeId = state.episode_id || currentEpisode;
+        const src = filename ? `http://localhost:3000/media/${episodeId}/${filename}` : '';
         html += `<div class="output-card">
-          <div class="output-thumb">▶</div>
+          <video src="${src}" controls style="width:100%;aspect-ratio:9/16;background:#000;display:block;"></video>
           <div class="output-info">
             <div class="output-name">${name}</div>
-            <div class="output-size">${fmtTime(clip.end_seconds - clip.start_seconds || 0)} duration</div>
+            <div class="output-size">${fmtTime((clip.end_seconds - clip.start_seconds) || 0)} duration</div>
           </div>
         </div>`;
       });

@@ -34,12 +34,15 @@ app.add_middleware(
 class StartRequest(BaseModel):
     episode_id: Optional[str] = None
     file_path: str
+    transcription_engine: Optional[str] = "whisper"
 
 
 class ApproveRequest(BaseModel):
     episode_id: str
     approved_clips: List[dict]
     human_feedback: Optional[str] = None
+    enrich_prompt: Optional[str] = None
+    detect_prompt: Optional[str] = None
 
 
 class RejectRequest(BaseModel):
@@ -53,7 +56,11 @@ async def start_pipeline(request: StartRequest):
     config = {"configurable": {"thread_id": episode_id}}
 
     state = await app.state.graph.ainvoke(
-        {"episode_id": episode_id, "file_path": request.file_path},
+        {
+            "episode_id": episode_id,
+            "file_path": request.file_path,
+            "transcription_engine": request.transcription_engine,
+        },
         config=config,
     )
 
@@ -90,14 +97,16 @@ async def approve_pipeline(request: ApproveRequest):
             detail=f"Pipeline is not at an interrupt point. Status: {snapshot.values.get('pipeline_status')}. Start a new pipeline."
         )
 
-    # Inject human-approved clips into state, then resume
-    await app.state.graph.aupdate_state(
-        config,
-        {
-            "approved_clips": request.approved_clips,
-            "human_feedback": request.human_feedback,
-        },
-    )
+    # Inject state updates, then resume
+    updates: dict = {
+        "approved_clips": request.approved_clips,
+        "human_feedback": request.human_feedback,
+    }
+    if request.enrich_prompt is not None:
+        updates["enrich_prompt"] = request.enrich_prompt
+    if request.detect_prompt is not None:
+        updates["detect_prompt"] = request.detect_prompt
+    await app.state.graph.aupdate_state(config, updates)
 
     state = await app.state.graph.ainvoke(None, config=config)
 
@@ -139,7 +148,11 @@ async def start_podcast(request: StartRequest):
     config = _podcast_config(episode_id)
 
     state = await app.state.podcast_graph.ainvoke(
-        {"episode_id": episode_id, "file_path": request.file_path},
+        {
+            "episode_id": episode_id,
+            "file_path": request.file_path,
+            "transcription_engine": request.transcription_engine,
+        },
         config=config,
     )
 

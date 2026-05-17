@@ -19,5 +19,8 @@ class ChalchitraState(TypedDict):
     rendered_clips: Optional[List[dict]]
     failed_clips: Optional[List[dict]]
     summary: Optional[dict]
+    transcription_engine: Optional[str]
     pipeline_status: Optional[str]
+    enrich_prompt: Optional[str]
+    detect_prompt: Optional[str]
     error: Optional[str]

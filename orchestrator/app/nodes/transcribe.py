@@ -2,9 +2,16 @@ import httpx
 from app.state import ChalchitraState
 
 async def transcribe_node(state: ChalchitraState) -> dict:
+    engine = state.get("transcription_engine") or "whisper"
+    urls = {
+        "whisper": "http://transcription:8001/transcribe",
+        "indic":   "http://transcription_indic:8011/transcribe",
+    }
+    url = urls.get(engine, urls["whisper"])
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "http://transcription:8001/transcribe",
+            url,
             json={"episode_id": state["episode_id"], "file_path": state["file_path"]},
             timeout=None,
         )

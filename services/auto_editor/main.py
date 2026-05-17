@@ -5,7 +5,7 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-SHARED_DIR = "/app/data"
+SHARED_DIR = "/app/shared/volumes"
 
 app = FastAPI()
 

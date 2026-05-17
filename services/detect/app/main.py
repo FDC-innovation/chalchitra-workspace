@@ -13,6 +13,7 @@ class DetectRequest(BaseModel):
     episode_id: str
     transcript: str
     srt: Optional[str] = ""
+    system_prompt: Optional[str] = None
 
 
 @app.get("/")
@@ -28,7 +29,7 @@ def detect(req: DetectRequest):
     word_count = len(req.transcript.split())
     estimated_duration = word_count / 2.5
 
-    prompt = f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
+    prompt = req.system_prompt or f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
 
 Analyze this transcript (estimated duration: {estimated_duration:.0f} seconds) and find the best clips.
 

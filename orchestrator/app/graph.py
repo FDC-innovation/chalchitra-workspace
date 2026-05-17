@@ -28,5 +28,5 @@ def build_graph(checkpointer):
 
     return builder.compile(
         checkpointer=checkpointer,
-        interrupt_before=["renderer"],
+        interrupt_before=["enrich", "renderer"],
     )

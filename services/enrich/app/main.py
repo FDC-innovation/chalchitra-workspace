@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import anthropic
 import os
 import json
@@ -11,6 +12,7 @@ client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 class EnrichRequest(BaseModel):
     episode_id: str
     transcript: str
+    system_prompt: Optional[str] = None
 
 
 @app.get("/")
@@ -23,7 +25,7 @@ def enrich(req: EnrichRequest):
     if not req.transcript.strip():
         raise HTTPException(400, "Empty transcript")
 
-    prompt = f"""You are a viral social media content strategist.
+    prompt = req.system_prompt or f"""You are a viral social media content strategist.
 
 Given this transcript, extract metadata to help create viral short-form clips.
 

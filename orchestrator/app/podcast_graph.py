@@ -25,6 +25,8 @@ class PodcastState(TypedDict):
     approved_clips: Optional[list]
     rendered_clips: Optional[list]
     failed_clips: Optional[list]
+    transcription_engine: Optional[str]
+    speaker_segments: Optional[list]
     human_feedback: Optional[str]
     summary: Optional[dict]
     error: Optional[str]
@@ -66,9 +68,16 @@ async def _auto_edit(state: PodcastState) -> dict:
 
 
 async def _transcribe(state: PodcastState) -> dict:
+    engine = state.get("transcription_engine") or "whisper"
+    urls = {
+        "whisper": "http://transcription:8001/transcribe",
+        "indic":   "http://transcription_indic:8011/transcribe",
+    }
+    url = urls.get(engine, urls["whisper"])
+
     async with httpx.AsyncClient() as client:
         r = await client.post(
-            "http://transcription:8001/transcribe",
+            url,
             json={"episode_id": state["episode_id"], "file_path": state["edited_file"]},
             timeout=None,
         )
@@ -79,6 +88,22 @@ async def _transcribe(state: PodcastState) -> dict:
         "srt": data.get("srt"),
         "words": data.get("words"),
     }
+
+
+async def _diarize(state: PodcastState) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "http://diarization:8012/diarize",
+            json={
+                "episode_id": state["episode_id"],
+                "file_path": state.get("edited_file") or state["file_path"],
+                "num_speakers": 2,
+            },
+            timeout=300,
+        )
+        r.raise_for_status()
+        data = r.json()
+    return {"speaker_segments": data.get("segments", [])}
 
 
 async def _enrich(state: PodcastState) -> dict:
@@ -176,6 +201,7 @@ def build_podcast_graph(checkpointer):
     builder.add_node("detect_silence", _detect_silence)
     builder.add_node("auto_edit", _auto_edit)
     builder.add_node("transcribe", _transcribe)
+    builder.add_node("diarize", _diarize)
     builder.add_node("enrich", _enrich)
     builder.add_node("structure", _structure)
     builder.add_node("detect_clips", _detect_clips)
@@ -184,7 +210,8 @@ def build_podcast_graph(checkpointer):
     builder.set_entry_point("detect_silence")
     builder.add_edge("detect_silence", "auto_edit")
     builder.add_edge("auto_edit", "transcribe")
-    builder.add_edge("transcribe", "enrich")
+    builder.add_edge("transcribe", "diarize")
+    builder.add_edge("diarize", "enrich")
     builder.add_edge("enrich", "structure")
     builder.add_edge("structure", "detect_clips")
     builder.add_edge("detect_clips", "renderer")
