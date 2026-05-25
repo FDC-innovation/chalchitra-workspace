@@ -12,6 +12,13 @@ services:
     restart: unless-stopped
     networks:
       - chalchitra
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/')"]
       interval: 10s
@@ -32,7 +39,8 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - LLM_BACKEND=ollama
-      - OLLAMA_MODEL=gemma3:4b
+      - OLLAMA_MODEL=gemma4:e2b
+      - OLLAMA_URL=http://ollama:11434
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/')"]
       interval: 10s
@@ -53,7 +61,8 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - LLM_BACKEND=ollama
-      - OLLAMA_MODEL=gemma3:4b
+      - OLLAMA_MODEL=gemma4:e2b
+      - OLLAMA_URL=http://ollama:11434
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
       interval: 10s
@@ -110,6 +119,13 @@ services:
       - chalchitra
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   silence_detector:
     build: ./services/silence_detector
@@ -133,6 +149,7 @@ services:
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - PYTHONUNBUFFERED=1
+      - WHISPER_MODEL=large-v3
     build:
       context: ./services/transcription_indic
       dockerfile: Dockerfile
@@ -141,10 +158,17 @@ services:
       - "8011:8011"
     volumes:
       - ./shared/volumes:/app/shared/volumes
-      - /Users/adityakumartonk/.cache/huggingface:/root/.cache/huggingface
+      - ${HF_CACHE_DIR:-~/.cache/huggingface}:/root/.cache/huggingface
     networks:
       - chalchitra
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/')"]
       interval: 10s
@@ -162,6 +186,13 @@ services:
     networks:
       - chalchitra
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   orchestrator:
     build: ./orchestrator
@@ -210,9 +241,10 @@ services:
       orchestrator:
         condition: service_started
     environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_URL=http://ollama:11434
       - LLM_BACKEND=ollama
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_MODEL=gemma4:e2b
       - TRANSCRIPTION_URL=http://transcription:8001
       - ENRICH_URL=http://enrich:8002
       - DETECT_URL=http://detect:8003
@@ -241,5 +273,3 @@ volumes:
   ollama_data:
   whisper_cache:
   indic_model_cache:
-
-

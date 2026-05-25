@@ -10,7 +10,7 @@ app = FastAPI()
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
 LLM_BACKEND = os.environ.get("LLM_BACKEND", "ollama")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e2b")
 OLLAMA_URL = "http://ollama:11434/api/generate"
 
 
@@ -31,12 +31,20 @@ def enrich(req: EnrichRequest):
         raise HTTPException(400, "Empty transcript")
 
     if LLM_BACKEND == "ollama":
-        prompt = req.system_prompt or (
-            "You are a podcast content expert. Given this transcript, return ONLY a JSON object with these exact keys: "
-            "title (string), show_notes (string), tags (list of strings), chapters (list of objects with keys: title, start_time, summary). "
-            "No markdown, no backticks, just raw JSON.\n\n"
-            f"Transcript: {req.transcript[:4000]}"
-        )
+        if req.system_prompt:
+            prompt = (
+                req.system_prompt +
+                "\n\nReturn ONLY a JSON object with keys: title, show_notes, tags, chapters. "
+                "No markdown, no backticks, just raw JSON.\n\n"
+                f"Transcript: {req.transcript[:4000]}"
+            )
+        else:
+            prompt = (
+                "You are a podcast content expert. Given this transcript, return ONLY a JSON object with these exact keys: "
+                "title (string), show_notes (string), tags (list of strings), chapters (list of objects with keys: title, start_time, summary). "
+                "No markdown, no backticks, just raw JSON.\n\n"
+                f"Transcript: {req.transcript[:4000]}"
+            )
 
         try:
             resp = httpx.post(OLLAMA_URL, json={
@@ -70,7 +78,14 @@ def enrich(req: EnrichRequest):
         }
 
     else:  # claude
-        prompt = req.system_prompt or f"""You are a viral social media content strategist.
+        if req.system_prompt:
+            prompt = (
+                req.system_prompt +
+                f"\n\nTranscript:\n{req.transcript[:4000]}\n\n"
+                "Return ONLY valid JSON (no markdown, no explanation)."
+            )
+        else:
+            prompt = f"""You are a viral social media content strategist.
 
 Given this transcript, extract metadata to help create viral short-form clips.
 

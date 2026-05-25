@@ -4,10 +4,14 @@ import re
 from app.state import ChalchitraState
 
 async def enrich_node(state: ChalchitraState) -> dict:
+    transcript = state.get("transcript_text", "")
+    if not transcript:
+        return {}
+
     async with httpx.AsyncClient(timeout=1200.0) as client:
         payload = {
             "episode_id": state["episode_id"],
-            "transcript": state["transcript_text"],
+            "transcript": transcript,
         }
         if state.get("enrich_prompt"):
             payload["system_prompt"] = state["enrich_prompt"]
@@ -15,20 +19,21 @@ async def enrich_node(state: ChalchitraState) -> dict:
         response.raise_for_status()
         data = response.json()
 
-    # Response is nested: data.enrichment.raw = "```json\n{...}\n```"
-    raw = data.get("enrichment", {}).get("raw", "")
+    # enrichment is now a direct dict, not wrapped in raw
+    enrichment = data.get("enrichment", {})
     
-    # Strip markdown code fences if present
-    clean = re.sub(r"```json\s*|\s*```", "", raw).strip()
-    
-    try:
-        parsed = json.loads(clean)
-    except json.JSONDecodeError:
-        parsed = {}
+    # handle both old raw format and new direct format
+    if isinstance(enrichment, dict) and "raw" in enrichment:
+        raw = enrichment.get("raw", "")
+        clean = re.sub(r"```json\s*|\s*```", "", raw).strip()
+        try:
+            enrichment = json.loads(clean)
+        except json.JSONDecodeError:
+            enrichment = {}
 
     return {
-        "title": parsed.get("title"),
-        "show_notes": parsed.get("topic") or parsed.get("show_notes"),
-        "tags": parsed.get("key_points") or parsed.get("tags"),
-        "chapters": parsed.get("chapters"),
+        "title": enrichment.get("title"),
+        "show_notes": enrichment.get("show_notes") or enrichment.get("topic"),
+        "tags": enrichment.get("tags") or enrichment.get("key_points"),
+        "chapters": enrichment.get("chapters"),
     }

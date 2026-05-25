@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 import uuid
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
@@ -23,12 +24,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow all origins for now, tighten later if needed
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+
+# Also add custom middleware as fallback to ensure CORS headers are always present
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
 
 class StartRequest(BaseModel):
@@ -48,6 +62,11 @@ class ApproveRequest(BaseModel):
 class RejectRequest(BaseModel):
     episode_id: str
     feedback: Optional[str] = None
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 @app.post("/pipeline/start")
@@ -192,4 +211,3 @@ async def approve_podcast(request: PodcastApproveRequest):
     state = await app.state.podcast_graph.ainvoke(None, config=config)
 
     return {"episode_id": request.episode_id, "state": state}
-# (already handled below - see fix)
