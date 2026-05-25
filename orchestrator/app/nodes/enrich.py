@@ -4,7 +4,7 @@ import re
 from app.state import ChalchitraState
 
 async def enrich_node(state: ChalchitraState) -> dict:
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=1200.0) as client:
         payload = {
             "episode_id": state["episode_id"],
             "transcript": state["transcript_text"],

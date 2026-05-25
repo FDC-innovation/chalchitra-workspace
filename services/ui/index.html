@@ -588,6 +588,77 @@
 
   .sel-count strong { color: var(--accent); }
 
+  /* PROMPT PANEL */
+  .prompt-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 6px;
+    padding: 28px;
+    max-width: 680px;
+  }
+
+  .prompt-panel .panel-title {
+    color: var(--accent);
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+
+  .prompt-panel .prompt-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .prompt-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .prompt-textarea {
+    width: 100%;
+    background: #0d0d0d;
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .prompt-textarea:focus { border-color: var(--accent); }
+
+  .prompt-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .btn-defaults {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 0.15s;
+  }
+
+  .btn-defaults:hover { color: var(--text); }
+
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -780,7 +851,7 @@ function startPolling(episodeId) {
     const status = data.state?.pipeline_status;
     updateEpisodeStatus(episodeId, status);
     if (currentEpisode === episodeId) renderMainPanel(data);
-    if (status === 'awaiting_approval' || status === 'completed') {
+    if (status === 'awaiting_approval' || status === 'completed' || (data.at_interrupt && data.next?.includes('enrich'))) {
       clearInterval(pollTimer);
     }
   }, 8000);
@@ -823,7 +894,8 @@ async function loadEpisode(id) {
     renderEpisodeList();
     renderMainPanel(data);
     const status = data.state?.pipeline_status;
-    if (status === 'running' || (!status && data.next?.length)) {
+    const atEnrichInterrupt = data.at_interrupt && data.next?.includes('enrich');
+    if ((status === 'running' || (!status && data.next?.length)) && !atEnrichInterrupt) {
       startPolling(id);
     }
   }
@@ -961,8 +1033,25 @@ function renderMainPanel(data, loading = false) {
     }
   }
 
-  // RUNNING STATE
-  if (status === 'running' || (!status && next.includes('transcribe'))) {
+  // HITL #1 — Prompt customization (pipeline interrupted before enrich)
+  if (atInterrupt && next.includes('enrich')) {
+    html += `
+    <div class="prompt-panel" id="prompt-panel">
+      <div class="panel-title" style="font-family:'Syne',sans-serif;font-weight:700;">Customize AI Prompts</div>
+      <div class="prompt-hint">Transcription complete. Customize the prompts that guide content enrichment and clip detection, or use the defaults.</div>
+      <label class="prompt-label">Enrich Prompt</label>
+      <textarea class="prompt-textarea" id="enrich-prompt-input" rows="4">Generate a compelling title, detailed show notes, relevant tags, and chapter markers for this podcast episode.</textarea>
+      <label class="prompt-label">Detect Prompt</label>
+      <textarea class="prompt-textarea" id="detect-prompt-input" rows="4">Find the 3-5 most viral and shareable moments. Look for surprising statements, emotional peaks, controversial opinions, or actionable insights.</textarea>
+      <div class="prompt-actions">
+        <button class="btn btn-primary" style="width:auto;margin-top:0;" onclick="submitPrompts('${currentEpisode}')">Continue with these prompts</button>
+        <button class="btn-defaults" onclick="useDefaultPrompts('${currentEpisode}')">Use defaults</button>
+      </div>
+    </div>`;
+  }
+
+  // RUNNING STATE (skip if we are paused at enrich HITL interrupt)
+  if ((status === 'running' || (!status && next.includes('transcribe'))) && !(atInterrupt && next.includes('enrich'))) {
     html += `<div style="display:flex;flex-direction:column;align-items:center;padding:40px;gap:12px;color:var(--muted);">
       <span class="spinner" style="width:24px;height:24px;border-width:3px;"></span>
       <div style="font-family:'Syne',sans-serif;color:var(--text);">Pipeline running</div>
@@ -1052,6 +1141,62 @@ async function rejectAll(episodeId) {
     log('All clips rejected.', 'warn');
     updateEpisodeStatus(episodeId, 'rejected');
   } catch (e) { log(`✗ ${e.message}`, 'err'); }
+}
+
+// ── HITL #1 Prompt Submission ────────────────────────────────
+async function submitPrompts(episodeId) {
+  const enrichPrompt = document.getElementById('enrich-prompt-input').value;
+  const detectPrompt = document.getElementById('detect-prompt-input').value;
+
+  const btn = document.querySelector('#prompt-panel .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+  try {
+    const r = await fetch(`${API}/pipeline/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        episode_id: episodeId,
+        enrich_prompt: enrichPrompt,
+        detect_prompt: detectPrompt,
+        approved_clips: []
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Approve failed');
+    log('✓ Prompts submitted. Pipeline continuing...', 'ok');
+    updateEpisodeStatus(episodeId, 'running');
+    startPolling(episodeId);
+  } catch (e) {
+    log(`✗ ${e.message}`, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Continue with these prompts';
+  }
+}
+
+async function useDefaultPrompts(episodeId) {
+  const btn = document.querySelector('#prompt-panel .btn-defaults');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const r = await fetch(`${API}/pipeline/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        episode_id: episodeId,
+        approved_clips: []
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Approve failed');
+    log('✓ Using default prompts. Pipeline continuing...', 'ok');
+    updateEpisodeStatus(episodeId, 'running');
+    startPolling(episodeId);
+  } catch (e) {
+    log(`✗ ${e.message}`, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Use defaults';
+  }
 }
 
 // ── Episode List ─────────────────────────────────────────────

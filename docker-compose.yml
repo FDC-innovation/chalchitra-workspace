@@ -31,6 +31,8 @@ services:
       - chalchitra
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_BACKEND=ollama
+      - OLLAMA_MODEL=gemma3:4b
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/')"]
       interval: 10s
@@ -50,6 +52,8 @@ services:
       - chalchitra
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_BACKEND=ollama
+      - OLLAMA_MODEL=gemma3:4b
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
       interval: 10s

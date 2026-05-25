@@ -2,12 +2,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from faster_whisper import WhisperModel
 import os
-import torch
 
 app = FastAPI()
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-compute_type = "float16" if device == "cuda" else "int8"
+device = "cpu"
+compute_type = "int8"
 model_size = os.environ.get("WHISPER_MODEL", "small")
 print(f"Loading Whisper {model_size} on {device} ({compute_type})", flush=True)
 model = WhisperModel(model_size, device=device, compute_type=compute_type)
@@ -26,7 +25,7 @@ def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
     print(f"Transcribing: {req.file_path}", flush=True)
-    segments, info = model.transcribe(req.file_path, language="hi", word_timestamps=True, beam_size=1, task="transcribe")
+    segments, info = model.transcribe(req.file_path, language="hi", word_timestamps=True, beam_size=1, task="transcribe", initial_prompt="यह एक हिंदी पॉडकास्ट है।")
     words = []
     srt_lines = []
     full_text = []

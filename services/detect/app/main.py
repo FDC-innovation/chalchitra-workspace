@@ -2,11 +2,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import anthropic
+import httpx
 import os
 import json
 
 app = FastAPI()
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+LLM_BACKEND = os.environ.get("LLM_BACKEND", "ollama")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_URL = "http://ollama:11434/api/generate"
 
 
 class DetectRequest(BaseModel):
@@ -29,7 +34,46 @@ def detect(req: DetectRequest):
     word_count = len(req.transcript.split())
     estimated_duration = word_count / 2.5
 
-    prompt = req.system_prompt or f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
+    if LLM_BACKEND == "ollama":
+        prompt = req.system_prompt or (
+            "You are a viral content expert. Analyze this transcript and find the 3-5 most shareable moments. "
+            "Return ONLY a JSON array of objects with these exact keys: title (string, max 8 words), "
+            "start_seconds (number), end_seconds (number), reason (string, one sentence). "
+            "Each clip should be 30-90 seconds. No markdown, no backticks, just raw JSON array.\n\n"
+            f"Transcript: {req.transcript[:6000]}\n"
+            f"SRT: {req.srt[:2000] if req.srt else ''}"
+        )
+
+        try:
+            resp = httpx.post(OLLAMA_URL, json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            }, timeout=1200.0)
+            resp.raise_for_status()
+            text = resp.json()["response"].strip()
+        except Exception as e:
+            raise HTTPException(500, f"Ollama request failed: {e}")
+
+        if "```" in text:
+            parts = text.split("```")
+            for part in parts:
+                if "[" in part or "{" in part:
+                    text = part
+                    if text.startswith("json"):
+                        text = text[4:]
+                    break
+        text = text.strip()
+
+        try:
+            clips_raw = json.loads(text)
+            if isinstance(clips_raw, dict) and "clips" in clips_raw:
+                clips_raw = clips_raw["clips"]
+        except Exception:
+            raise HTTPException(500, f"Failed to parse Ollama response as JSON: {text[:300]}")
+
+    else:  # claude
+        prompt = req.system_prompt or f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
 
 Analyze this transcript (estimated duration: {estimated_duration:.0f} seconds) and find the best clips.
 
@@ -57,32 +101,32 @@ Return ONLY valid JSON, no markdown, no explanation:
   ]
 }}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}]
-    )
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    text = message.content[0].text.strip()
+        text = message.content[0].text.strip()
 
-    if "```" in text:
-        parts = text.split("```")
-        for part in parts:
-            if "{" in part:
-                text = part
-                if text.startswith("json"):
-                    text = text[4:]
-                break
-    text = text.strip()
+        if "```" in text:
+            parts = text.split("```")
+            for part in parts:
+                if "{" in part:
+                    text = part
+                    if text.startswith("json"):
+                        text = text[4:]
+                    break
+        text = text.strip()
 
-    try:
-        data = json.loads(text)
-        clips = data.get("clips", [])
-    except Exception:
-        raise HTTPException(500, f"Failed to parse Claude response: {text[:300]}")
+        try:
+            data = json.loads(text)
+            clips_raw = data.get("clips", [])
+        except Exception:
+            raise HTTPException(500, f"Failed to parse Claude response: {text[:300]}")
 
     valid_clips = []
-    for clip in clips:
+    for clip in clips_raw:
         start = float(clip.get("start_seconds", 0))
         end = float(clip.get("end_seconds", 0))
         duration = end - start

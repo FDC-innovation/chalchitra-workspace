@@ -2,11 +2,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import anthropic
+import httpx
 import os
 import json
 
 app = FastAPI()
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+LLM_BACKEND = os.environ.get("LLM_BACKEND", "ollama")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_URL = "http://ollama:11434/api/generate"
 
 
 class EnrichRequest(BaseModel):
@@ -25,7 +30,47 @@ def enrich(req: EnrichRequest):
     if not req.transcript.strip():
         raise HTTPException(400, "Empty transcript")
 
-    prompt = req.system_prompt or f"""You are a viral social media content strategist.
+    if LLM_BACKEND == "ollama":
+        prompt = req.system_prompt or (
+            "You are a podcast content expert. Given this transcript, return ONLY a JSON object with these exact keys: "
+            "title (string), show_notes (string), tags (list of strings), chapters (list of objects with keys: title, start_time, summary). "
+            "No markdown, no backticks, just raw JSON.\n\n"
+            f"Transcript: {req.transcript[:4000]}"
+        )
+
+        try:
+            resp = httpx.post(OLLAMA_URL, json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            }, timeout=1200.0)
+            resp.raise_for_status()
+            text = resp.json()["response"].strip()
+        except Exception as e:
+            raise HTTPException(500, f"Ollama request failed: {e}")
+
+        if "```" in text:
+            parts = text.split("```")
+            for part in parts:
+                if "{" in part:
+                    text = part
+                    if text.startswith("json"):
+                        text = text[4:]
+                    break
+        text = text.strip()
+
+        try:
+            data = json.loads(text)
+        except Exception:
+            raise HTTPException(500, f"Failed to parse Ollama response as JSON: {text[:300]}")
+
+        return {
+            "episode_id": req.episode_id,
+            "enrichment": data,
+        }
+
+    else:  # claude
+        prompt = req.system_prompt or f"""You are a viral social media content strategist.
 
 Given this transcript, extract metadata to help create viral short-form clips.
 
@@ -42,19 +87,19 @@ Return ONLY valid JSON (no markdown, no explanation):
   "tone": "educational|motivational|entertaining|informational"
 }}"""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}]
-    )
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    text = message.content[0].text.strip()
-    try:
-        data = json.loads(text)
-    except Exception:
-        data = {"raw": text}
+        text = message.content[0].text.strip()
+        try:
+            data = json.loads(text)
+        except Exception:
+            data = {"raw": text}
 
-    return {
-        "episode_id": req.episode_id,
-        "enrichment": data,
-    }
+        return {
+            "episode_id": req.episode_id,
+            "enrichment": data,
+        }
