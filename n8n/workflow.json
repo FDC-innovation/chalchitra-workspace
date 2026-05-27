@@ -1,0 +1,120 @@
+{
+  "name": "Chalchitra Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chalchitra",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chalchitra-pipeline"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://gateway:8000/api/steps/transcribe/{{ $json.body.episode_id }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "2",
+      "name": "1. Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://gateway:8000/api/steps/enrich/{{ $json.episode_id }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "3",
+      "name": "2. Enrich",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://gateway:8000/api/steps/detect/{{ $json.episode_id }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "4",
+      "name": "3. Detect Clips",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://gateway:8000/api/steps/ffmpeg/{{ $json.episode_id }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "5",
+      "name": "4. Cut Clips",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://gateway:8000/api/steps/render/{{ $json.episode_id }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "6",
+      "name": "5. Render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "1. Transcribe", "type": "main", "index": 0 }]
+      ]
+    },
+    "1. Transcribe": {
+      "main": [
+        [{ "node": "2. Enrich", "type": "main", "index": 0 }]
+      ]
+    },
+    "2. Enrich": {
+      "main": [
+        [{ "node": "3. Detect Clips", "type": "main", "index": 0 }]
+      ]
+    },
+    "3. Detect Clips": {
+      "main": [
+        [{ "node": "4. Cut Clips", "type": "main", "index": 0 }]
+      ]
+    },
+    "4. Cut Clips": {
+      "main": [
+        [{ "node": "5. Render", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["chalchitra"]
+}

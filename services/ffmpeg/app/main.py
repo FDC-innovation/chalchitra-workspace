@@ -4,8 +4,16 @@ import subprocess
 import os
 import tempfile
 import json
+import traceback
+import logging
 
-from app.srt_utils import parse_srt, trim_srt, trim_words, entries_to_ass, words_to_animated_ass
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("chalchitra.ffmpeg")
+
+from app.srt_utils import parse_srt, trim_srt, trim_words, entries_to_ass
+from app.renderer import (
+    render_intro, render_outro, render_captions_overlay_shorts,
+)
 
 app = FastAPI()
 
@@ -31,10 +39,6 @@ class RenderRequest(BaseModel):
     words_json: str = "[]"
 
 
-def _escape_drawtext(text: str) -> str:
-    return text.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
-
-
 def _run(cmd: list, label: str):
     try:
         subprocess.run(cmd, check=True, capture_output=True)
@@ -51,72 +55,13 @@ def _extract_frame(clip_path: str, output_path: str, position: str = "first"):
     _run(cmd, f"extract_{position}_frame")
 
 
-def _create_intro(bg_image: str, output_path: str, channel: str, clip_title: str,
-                  duration: float, width: int = 1920, height: int = 1080):
-    """
-    Intro card: blurred frame background with channel name (small, top)
-    and clip title (large, center). Whole card fades in/out.
-    """
-    ch = _escape_drawtext(channel)
-    ti = _escape_drawtext(clip_title)
-
-    vf = (
-        f"scale={width}:{height},"
-        f"boxblur=18:18,"
-        f"eq=brightness=-0.25,"
-        f"drawtext=fontsize=42:fontcolor=white:bordercolor=black:borderw=2"
-        f":text='{ch}':x=(w-text_w)/2:y={int(height*0.38)},"
-        f"drawtext=fontsize=76:fontcolor=white:bordercolor=black:borderw=3"
-        f":text='{ti}':x=(w-text_w)/2:y={int(height*0.48)},"
-        f"fade=t=in:st=0:d=0.4,"
-        f"fade=t=out:st={duration-0.4}:d=0.4"
-    )
-    _run([
-        "ffmpeg", "-y",
-        "-loop", "1", "-i", bg_image,
-        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-        "-t", str(duration),
-        "-vf", vf,
-        "-c:v", "libx264", "-c:a", "aac",
-        "-shortest",
-        output_path,
-    ], "create_intro")
-
-
-def _create_outro(bg_image: str, output_path: str, handle: str,
-                  duration: float, width: int = 1920, height: int = 1080):
-    """
-    Outro card: blurred last frame with CTA and social handle.
-    """
-    ha = _escape_drawtext(handle)
-
-    vf = (
-        f"scale={width}:{height},"
-        f"boxblur=18:18,"
-        f"eq=brightness=-0.25,"
-        f"drawtext=fontsize=68:fontcolor=white:bordercolor=black:borderw=3"
-        f":text='Follow for more':x=(w-text_w)/2:y={int(height*0.42)},"
-        f"drawtext=fontsize=48:fontcolor=#FFD700:bordercolor=black:borderw=2"
-        f":text='{ha}':x=(w-text_w)/2:y={int(height*0.55)},"
-        f"fade=t=in:st=0:d=0.4,"
-        f"fade=t=out:st={duration-0.4}:d=0.4"
-    )
-    _run([
-        "ffmpeg", "-y",
-        "-loop", "1", "-i", bg_image,
-        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-        "-t", str(duration),
-        "-vf", vf,
-        "-c:v", "libx264", "-c:a", "aac",
-        "-shortest",
-        output_path,
-    ], "create_outro")
 
 
 def _burn_captions(input_path: str, ass_path: str, output_path: str):
     _run([
         "ffmpeg", "-y",
         "-i", input_path,
+        "-sn",
         "-vf", f"subtitles={ass_path}",
         "-c:v", "libx264", "-c:a", "aac",
         output_path,
@@ -135,22 +80,23 @@ def _concat_three(intro: str, main: str, outro: str, output_path: str):
     ], "concat")
 
 
-def _make_shorts(input_path: str, ass_path: str, output_path: str):
+def _make_shorts_raw(input_path: str, output_path: str):
+    """Convert any clip to 9:16 1080x1920 blur-pad vertical with SAR 1:1 forced."""
     filter_complex = (
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
+        "[0:v]setsar=1,scale=1080:1920:force_original_aspect_ratio=increase,"
         "crop=1080:1920,boxblur=20:20[bg];"
-        "[0:v]scale=1080:-2[fg];"
-        "[bg][fg]overlay=x=(W-w)/2:y=(H-h)/2[composite];"
-        f"[composite]subtitles={ass_path}[v]"
+        "[0:v]setsar=1,scale=1080:-2[fg];"
+        "[bg][fg]overlay=x=(W-w)/2:y=(H-h)/2,setsar=1[v]"
     )
     _run([
         "ffmpeg", "-y",
         "-i", input_path,
+        "-sn",
         "-filter_complex", filter_complex,
         "-map", "[v]", "-map", "0:a",
         "-c:v", "libx264", "-c:a", "aac",
         output_path,
-    ], "make_shorts")
+    ], "make_shorts_raw")
 
 
 @app.get("/")
@@ -181,6 +127,7 @@ def generate_clips(req: ClipRequest):
             "-ss", str(start),
             "-t", str(duration),
             "-c:v", "libx264", "-c:a", "aac",
+            "-sn",                          # strip any subtitle streams from source
             "-avoid_negative_ts", "make_zero",
             output_path,
         ]
@@ -196,75 +143,64 @@ def generate_clips(req: ClipRequest):
 @app.post("/render")
 def render_clip(req: RenderRequest):
     """
-    Full render for one clip:
-      Landscape (16:9): blurred-frame intro + captioned clip + blurred-frame outro
-      Shorts    (9:16): blur-pad vertical + animated captions
+    Full render for one clip using Pillow-based animated renderer:
+      Landscape (16:9): animated intro + CapCut captions + animated outro
+      Shorts    (9:16): blur-pad vertical + CapCut captions + intro/outro
     """
     if not os.path.exists(req.clip_path):
         raise HTTPException(status_code=404, detail=f"Clip not found: {req.clip_path}")
+
+    try:
+        return _do_render(req)
+    except Exception as e:
+        err = traceback.format_exc()
+        logger.error(f"[render] failed for clip {req.clip_index}:\n{err}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _do_render(req: RenderRequest):
 
     output_dir = os.path.dirname(req.clip_path)
     base = f"{req.episode_id}_clip{req.clip_index}"
 
     with tempfile.TemporaryDirectory() as tmp:
-        ass_landscape  = os.path.join(tmp, "captions_landscape.ass")
-        ass_shorts     = os.path.join(tmp, "captions_shorts.ass")
-        intro_frame    = os.path.join(tmp, "intro_frame.jpg")
-        outro_frame    = os.path.join(tmp, "outro_frame.jpg")
-        intro_path     = os.path.join(tmp, "intro.mp4")
-        outro_path     = os.path.join(tmp, "outro.mp4")
-        captioned_path = os.path.join(tmp, "captioned.mp4")
+        intro_frame = os.path.join(tmp, "intro_frame.jpg")
+        outro_frame = os.path.join(tmp, "outro_frame.jpg")
+        intro_9     = os.path.join(tmp, "intro_9.mp4")
+        outro_9     = os.path.join(tmp, "outro_9.mp4")
+        shorts_raw  = os.path.join(tmp, "shorts_raw.mp4")
+        captioned_9 = os.path.join(tmp, "captioned_9.mp4")
 
-        # ── Animated captions ─────────────────────────────────────────────
+        # ── Word timestamps ────────────────────────────────────────────────
         all_words  = json.loads(req.words_json) if req.words_json else []
         clip_words = trim_words(all_words, req.start_seconds, req.end_seconds)
 
-        if clip_words:
-            landscape_ass = words_to_animated_ass(clip_words, play_res_x=1920, play_res_y=1080, margin_v=100)
-            shorts_ass    = words_to_animated_ass(clip_words, play_res_x=1080, play_res_y=1920, margin_v=180)
-        else:
-            entries      = parse_srt(req.srt_content)
-            clip_entries = trim_srt(entries, req.start_seconds, req.end_seconds)
-            landscape_ass = entries_to_ass(clip_entries, play_res_x=1920, play_res_y=1080, margin_v=80)
-            shorts_ass    = entries_to_ass(clip_entries, play_res_x=1080, play_res_y=1920, margin_v=160)
-
-        with open(ass_landscape, "w", encoding="utf-8") as f:
-            f.write(landscape_ass)
-        with open(ass_shorts, "w", encoding="utf-8") as f:
-            f.write(shorts_ass)
-
-        # ── Extract frames for blurred backgrounds ────────────────────────
+        # ── Extract first/last frames for intro/outro backgrounds ──────────
         _extract_frame(req.clip_path, intro_frame, "first")
         _extract_frame(req.clip_path, outro_frame, "last")
 
-        # 16:9 cards
-        intro_path_16 = os.path.join(tmp, "intro_16.mp4")
-        outro_path_16 = os.path.join(tmp, "outro_16.mp4")
-        _create_intro(intro_frame, intro_path_16, channel=req.show_title,
-                      clip_title=req.clip_title, duration=req.intro_duration,
-                      width=1920, height=1080)
-        _create_outro(outro_frame, outro_path_16, handle=req.channel_handle,
-                      duration=req.outro_duration, width=1920, height=1080)
+        # ── Shorts only: blur-pad → intro/outro → captions → concat ─────────
+        render_intro(intro_frame, intro_9, channel=req.show_title,
+                     clip_title=req.clip_title, duration=req.intro_duration,
+                     width=1080, height=1920)
+        render_outro(outro_frame, outro_9, handle=req.channel_handle,
+                     duration=req.outro_duration, width=1080, height=1920)
 
-        # 9:16 cards
-        intro_path_9  = os.path.join(tmp, "intro_9.mp4")
-        outro_path_9  = os.path.join(tmp, "outro_9.mp4")
-        _create_intro(intro_frame, intro_path_9, channel=req.show_title,
-                      clip_title=req.clip_title, duration=req.intro_duration,
-                      width=1080, height=1920)
-        _create_outro(outro_frame, outro_path_9, handle=req.channel_handle,
-                      duration=req.outro_duration, width=1080, height=1920)
+        _make_shorts_raw(req.clip_path, shorts_raw)
+        if clip_words:
+            render_captions_overlay_shorts(clip_words, shorts_raw, captioned_9,
+                                           width=1080, height=1920)
+        else:
+            entries      = parse_srt(req.srt_content)
+            clip_entries = trim_srt(entries, req.start_seconds, req.end_seconds)
+            ass_path9    = os.path.join(tmp, "fallback9.ass")
+            with open(ass_path9, "w", encoding="utf-8") as f:
+                f.write(entries_to_ass(clip_entries, 1080, 1920, 160))
+            _burn_captions(shorts_raw, ass_path9, captioned_9)
 
-        # ── Landscape: captions → concat ──────────────────────────────────
-        _burn_captions(req.clip_path, ass_landscape, captioned_path)
-        landscape_path = os.path.join(output_dir, f"{base}_landscape.mp4")
-        _concat_three(intro_path_16, captioned_path, outro_path_16, landscape_path)
-
-        # ── Shorts: 9:16 blur pad + captions → concat ─────────────────────
-        shorts_clip = os.path.join(tmp, "shorts_clip.mp4")
-        _make_shorts(req.clip_path, ass_shorts, shorts_clip)
         shorts_path = os.path.join(output_dir, f"{base}_shorts.mp4")
-        _concat_three(intro_path_9, shorts_clip, outro_path_9, shorts_path)
+        _concat_three(intro_9, captioned_9, outro_9, shorts_path)
+        landscape_path = shorts_path  # return shorts as landscape too for UI compat
 
     return {
         "episode_id": req.episode_id,

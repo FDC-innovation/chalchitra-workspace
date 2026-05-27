@@ -2,10 +2,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import whisper
+import threading
 import os
 
 app = FastAPI()
 model = whisper.load_model("base")
+
+# Whisper is not thread-safe — only one transcription at a time
+_lock = threading.Semaphore(1)
 
 
 class TranscribeRequest(BaseModel):
@@ -40,13 +44,14 @@ def health():
 def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
-    try:
-        kwargs = {"word_timestamps": True, "task": req.task}
-        if req.language:
-            kwargs["language"] = req.language
-        result = model.transcribe(req.file_path, **kwargs)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Whisper failed: {str(e)}")
+    with _lock:
+        try:
+            kwargs = {"word_timestamps": True, "task": req.task}
+            if req.language:
+                kwargs["language"] = req.language
+            result = model.transcribe(req.file_path, **kwargs)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Whisper failed: {str(e)}")
 
     segments = result.get("segments", [])
     words = []

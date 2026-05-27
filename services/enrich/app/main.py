@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import anthropic
+from groq import Groq
 import json
 import os
 
 app = FastAPI()
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 
 class EnrichRequest(BaseModel):
@@ -37,12 +37,12 @@ Transcript:
 Return ONLY valid JSON. No explanation, no markdown, no backticks."""
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = message.content[0].text.strip()
+        raw = response.choices[0].message.content.strip()
         data = json.loads(raw)
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail="LLM returned invalid JSON")

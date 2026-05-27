@@ -7,7 +7,7 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
-    anthropic \
+    groq \
     pydantic
 
 COPY app/ ./app/

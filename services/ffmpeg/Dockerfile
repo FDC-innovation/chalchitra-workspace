@@ -4,6 +4,10 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    fonts-liberation2 \
+    fonts-open-sans \
+    fontconfig \
+    && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
@@ -11,7 +15,9 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
-    pydantic
+    pydantic \
+    pillow \
+    numpy
 
 COPY app/ ./app/
 

@@ -4,281 +4,681 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chalchitra — AI Clip Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #08080f;
-  --surface: #111118;
-  --surface2: #1a1a24;
-  --border: #252535;
-  --accent: #7c3aed;
-  --accent2: #4f46e5;
-  --text: #e2e8f0;
-  --muted: #64748b;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
+  --bg:     #080808;
+  --s1:     #111111;
+  --s2:     #1a1a1a;
+  --border: #242424;
+  --orange: #FF8C00;
+  --gold:   #FFB800;
+  --dim:    rgba(255,140,0,0.10);
+  --glow:   rgba(255,140,0,0.30);
+  --text:   #f0ede8;
+  --muted:  #4a4a4a;
+  --muted2: #808080;
+  --ok:     #22c55e;
+  --warn:   #f59e0b;
+  --fail:   #ef4444;
 }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
+/* ── Dot-grid background ── */
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
 }
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+  background-size: 28px 28px;
+  animation: dotdrift 28s linear infinite;
+  mask-image: radial-gradient(ellipse 90% 90% at 50% 40%, black 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 40%, black 30%, transparent 80%);
+}
+@keyframes dotdrift { to { background-position: 28px 28px; } }
 
+/* all content above the bg */
+header, .hero, .container, .modal-overlay { position: relative; z-index: 1; }
+
+/* ── Film strip bar ── */
+.filmstrip {
+  position: sticky; top: 0; z-index: 200;
+  height: 13px;
+  background: var(--orange);
+  overflow: hidden;
+}
+.filmstrip::before {
+  content: '';
+  position: absolute; top: 2px; bottom: 2px; left: 0;
+  width: 400%;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px, transparent 7px,
+    rgba(0,0,0,0.88) 7px, rgba(0,0,0,0.88) 17px,
+    transparent 17px, transparent 26px
+  );
+  animation: filmroll 3.5s linear infinite;
+}
+@keyframes filmroll { to { transform: translateX(-25%); } }
+
+/* ── Header ── */
 header {
-  background: var(--surface);
+  background: rgba(8,8,8,0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  padding: 16px 32px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  padding: 0 32px;
+  height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 13px; z-index: 100;
 }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: var(--orange);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(255,140,0,0.5);
+}
+.logo-mark svg { width: 14px; height: 14px; fill: #000; }
+.logo-name { font-size: 16px; font-weight: 900; letter-spacing: 0.07em; }
+.logo-name em { color: var(--orange); font-style: normal; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-stat {
+  font-size: 11px; color: var(--muted2);
+  border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 20px;
+  display: flex; align-items: center; gap: 5px;
+}
+.header-stat .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--orange); display: inline-block;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-.logo {
-  font-size: 20px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #a78bfa, #818cf8);
+/* ── Hero ── */
+.hero {
+  padding: 72px 24px 52px;
+  text-align: center;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute; left: 50%; top: 0;
+  transform: translateX(-50%);
+  width: 800px; height: 400px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,140,0,0.10) 0%, transparent 65%);
+  pointer-events: none; z-index: 0;
+}
+.hero-content { position: relative; z-index: 1; }
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--orange);
+  border: 1px solid rgba(255,140,0,0.25);
+  background: rgba(255,140,0,0.06);
+  padding: 5px 14px; border-radius: 20px;
+  margin-bottom: 24px;
+}
+.hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+
+.hero h1 {
+  font-size: clamp(36px, 5.5vw, 60px);
+  font-weight: 900; line-height: 1.08;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+.hero h1 .grad {
+  background: linear-gradient(90deg, var(--orange) 0%, var(--gold) 50%, var(--orange) 100%);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% center; } }
+
+.hero-sub {
+  color: var(--muted2); font-size: 16px;
+  max-width: 480px; margin: 0 auto 16px;
+  line-height: 1.75;
 }
 
-.tagline { color: var(--muted); font-size: 13px; }
+/* Hero stats row */
+.hero-stats {
+  display: flex; align-items: center; justify-content: center;
+  gap: 32px; margin-bottom: 44px;
+}
+.hstat {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+}
+.hstat-num {
+  font-size: 28px; font-weight: 900;
+  letter-spacing: -0.04em; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.hstat-num.orange { color: var(--orange); }
+.hstat-label { font-size: 11px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.hstat-divider { width: 1px; height: 36px; background: var(--border); }
 
-.container { max-width: 960px; margin: 0 auto; padding: 36px 24px; }
+/* ── Upload zone ── */
+.upload-wrap { max-width: 660px; margin: 0 auto 20px; }
 
-/* Upload zone */
 .upload-zone {
-  border: 2px dashed var(--border);
-  border-radius: 20px;
+  position: relative;
+  border: 1.5px dashed var(--border);
+  border-radius: 22px;
   padding: 52px 32px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.25s;
-  background: var(--surface);
-  margin-bottom: 32px;
-  position: relative;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  background: rgba(17,17,17,0.8);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+.upload-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,140,0,0.08), transparent);
+  opacity: 0; transition: opacity 0.3s;
 }
 .upload-zone:hover, .upload-zone.drag-over {
-  border-color: var(--accent);
-  background: rgba(124,58,237,0.06);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(124,58,237,0.15);
+  border-color: var(--orange); border-style: solid;
+  box-shadow: 0 0 0 4px rgba(255,140,0,0.07), 0 12px 48px rgba(255,140,0,0.14);
+  transform: translateY(-3px);
 }
-.upload-icon { font-size: 52px; margin-bottom: 16px; display: block; }
-.upload-zone h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-.upload-zone p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+.upload-zone:hover::before, .upload-zone.drag-over::before { opacity: 1; }
+
+.fc {
+  position: absolute; width: 24px; height: 24px;
+  border-color: var(--orange); border-style: solid; opacity: 0.45;
+  transition: all 0.3s; pointer-events: none;
+}
+.upload-zone:hover .fc { opacity: 1; }
+.fc.tl { top: 16px; left: 16px;  border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+.fc.tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+.fc.bl { bottom: 16px; left: 16px;  border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+.fc.br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+.upload-icon-wrap {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: var(--s2); border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 22px; transition: all 0.3s;
+}
+.upload-zone:hover .upload-icon-wrap {
+  background: rgba(255,140,0,0.1); border-color: var(--orange);
+  box-shadow: 0 0 24px var(--glow);
+}
+.upload-icon-wrap svg { width: 34px; height: 34px; stroke: var(--muted2); transition: stroke 0.3s; }
+.upload-zone:hover .upload-icon-wrap svg { stroke: var(--orange); }
+
+.upload-zone h2 { font-size: 21px; font-weight: 800; margin-bottom: 8px; }
+.upload-zone p  { color: var(--muted2); font-size: 13px; margin-bottom: 26px; }
 input[type=file] { display: none; }
 
+/* ── Buttons ── */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 11px 24px; border-radius: 10px;
-  font-size: 14px; font-weight: 600;
-  cursor: pointer; border: none; transition: all 0.2s;
+  padding: 12px 28px; border-radius: 10px;
+  font-size: 14px; font-weight: 700; font-family: inherit;
+  cursor: pointer; border: none; transition: all 0.2s; letter-spacing: 0.02em;
 }
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: white;
-}
-.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--orange); color: #000; }
+.btn-primary:hover { background: #ffA000; box-shadow: 0 6px 24px var(--glow); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* Uploading bar */
+/* ── Upload status ── */
 .upload-status {
   display: none; align-items: center; gap: 12px;
-  background: rgba(124,58,237,0.1);
-  border: 1px solid rgba(124,58,237,0.3);
+  background: var(--s1); border: 1px solid var(--border);
   border-radius: 12px; padding: 14px 20px;
-  margin-bottom: 24px; font-size: 14px;
+  max-width: 660px; margin: 12px auto 0;
+  font-size: 13px; color: var(--muted2);
 }
 .spinner {
-  width: 18px; height: 18px; flex-shrink: 0;
-  border: 2px solid rgba(124,58,237,0.25);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 2px solid var(--border); border-top-color: var(--orange);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Section heading */
-.section-label {
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--muted); margin-bottom: 16px;
-}
+/* ── Main container ── */
+.container { max-width: 1020px; margin: 0 auto; padding: 0 24px 80px; }
 
-/* Episode card */
+/* ── Episode card — glassmorphism ── */
 .ep-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 20px;
-  transition: border-color 0.3s;
-}
-.ep-card.complete { border-color: rgba(16,185,129,0.3); }
-
-.ep-top {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; margin-bottom: 20px;
-}
-.ep-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-.ep-meta { color: var(--muted); font-size: 12px; font-family: monospace; }
-.ep-badge {
-  font-size: 12px; font-weight: 600; padding: 4px 10px;
-  border-radius: 20px; white-space: nowrap;
-}
-.ep-badge.processing { background: rgba(245,158,11,0.15); color: var(--warning); }
-.ep-badge.complete   { background: rgba(16,185,129,0.15); color: var(--success); }
-.ep-badge.failed     { background: rgba(239,68,68,0.15);  color: var(--error); }
-
-/* Pipeline steps */
-.pipeline {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  background: rgba(16,16,16,0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 20px;
   margin-bottom: 24px;
+  overflow: hidden;
+  transition: border-color 0.4s, box-shadow 0.4s;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5);
 }
+.ep-card.complete {
+  border-color: rgba(34,197,94,0.18);
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,197,94,0.08);
+}
+.ep-card.processing {
+  border-color: rgba(255,140,0,0.15);
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5), 0 0 30px rgba(255,140,0,0.04);
+}
+.ep-card.has-error { border-color: rgba(239,68,68,0.15); }
+
+.ep-header {
+  padding: 20px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.ep-info { display: flex; align-items: center; gap: 14px; }
+.ep-icon {
+  width: 44px; height: 44px; border-radius: 11px;
+  background: rgba(255,140,0,0.1); border: 1px solid rgba(255,140,0,0.2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 20px;
+}
+.ep-name { font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+.ep-meta { font-size: 11px; color: var(--muted2); font-family: monospace; }
+.ep-badge {
+  font-size: 11px; font-weight: 700; padding: 5px 12px;
+  border-radius: 20px; letter-spacing: 0.04em; white-space: nowrap;
+}
+.ep-badge.processing { background: rgba(245,158,11,0.1);  color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+.ep-badge.complete   { background: rgba(34,197,94,0.1);   color: var(--ok);   border: 1px solid rgba(34,197,94,0.22); }
+.ep-badge.failed     { background: rgba(239,68,68,0.1);   color: var(--fail); border: 1px solid rgba(239,68,68,0.2); }
+
+.ep-delete {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: transparent; border: 1px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); transition: all 0.2s;
+  flex-shrink: 0; margin-left: 8px;
+}
+.ep-delete:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: var(--fail); }
+.ep-delete svg { width: 14px; height: 14px; stroke: currentColor; }
+
+/* ── Pipeline timeline ── */
+.pipeline-wrap { padding: 24px 28px 20px; }
+.pipeline { display: flex; align-items: flex-start; }
+
+.pipe-connector {
+  flex: 1; height: 2px; margin-top: 19px;
+  background: rgba(255,255,255,0.06);
+  position: relative; overflow: hidden; transition: background 0.5s;
+}
+.pipe-connector.done { background: rgba(34,197,94,0.35); }
+.pipe-connector.active::after {
+  content: '';
+  position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--orange) 50%, transparent 100%);
+  animation: flow 1.6s ease-in-out infinite;
+}
+@keyframes flow { to { left: 100%; } }
+
 .pipe-step {
-  background: var(--surface2);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 10px 6px;
-  text-align: center;
-  font-size: 11px; font-weight: 600;
-  transition: all 0.3s;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex-shrink: 0; width: 80px;
 }
-.pipe-step .s-icon { font-size: 20px; display: block; margin-bottom: 5px; }
-.pipe-step.pending   { color: var(--muted); }
-.pipe-step.processing {
-  background: rgba(245,158,11,0.1);
-  border-color: rgba(245,158,11,0.35);
-  color: var(--warning);
-  animation: glow 1.5s ease-in-out infinite;
+.pipe-dot {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: all 0.35s;
 }
-.pipe-step.done   { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--success); }
-.pipe-step.failed { background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.3);  color: var(--error); }
-@keyframes glow { 0%,100% { box-shadow: 0 0 0 rgba(245,158,11,0); } 50% { box-shadow: 0 0 12px rgba(245,158,11,0.3); } }
+.pipe-step.done .pipe-dot {
+  border-color: var(--ok); background: rgba(34,197,94,0.12); color: var(--ok);
+}
+.pipe-step.processing .pipe-dot {
+  border-color: var(--orange); background: rgba(255,140,0,0.1);
+  animation: pulse-ring 1.6s ease-in-out infinite;
+}
+.pipe-step.failed .pipe-dot { border-color: var(--fail); background: rgba(239,68,68,0.1); }
+@keyframes pulse-ring {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,140,0,0.3); }
+  50%      { box-shadow: 0 0 0 8px rgba(255,140,0,0.0); }
+}
+.pipe-label {
+  font-size: 10px; font-weight: 600; text-align: center; line-height: 1.3;
+  color: var(--muted2); letter-spacing: 0.04em; text-transform: uppercase;
+  transition: color 0.3s;
+}
+.pipe-step.done .pipe-label     { color: var(--ok); }
+.pipe-step.processing .pipe-label { color: var(--orange); }
+.pipe-step.failed .pipe-label   { color: var(--fail); }
 
-/* Clips grid */
-.clips-section { margin-top: 4px; }
-.clips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+/* ── Clips section ── */
+.clips-section { padding: 4px 24px 24px; }
+.clips-heading {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--muted2);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.clips-heading::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
 
+.clips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+/* ── Clip card — 3D tilt ── */
 .clip-card {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(22,22,22,0.85);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  transform-style: preserve-3d;
+  will-change: transform;
+  cursor: default;
 }
-.clip-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; line-height: 1.4; }
-.clip-why  { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+.clip-card:hover {
+  border-color: rgba(255,140,0,0.3);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,140,0,0.1);
+}
+/* Sheen overlay for 3D effect */
+.clip-card .sheen {
+  position: absolute; inset: 0; z-index: 10; pointer-events: none;
+  border-radius: 16px;
+  background: radial-gradient(circle at var(--mx,50%) var(--my,50%),
+    rgba(255,255,255,0.06) 0%, transparent 60%);
+  opacity: 0; transition: opacity 0.2s;
+}
+.clip-card:hover .sheen { opacity: 1; }
+
+.clip-thumb {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  background: #0a0a0a; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.clip-thumb-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--muted);
+}
+.clip-thumb-placeholder svg { width: 36px; height: 36px; stroke: var(--muted); opacity: 0.3; }
+.clip-thumb video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0; transition: opacity 0.4s;
+}
+.clip-thumb video.loaded { opacity: 1; }
+.clip-play-btn {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.2s;
+}
+.clip-thumb:hover .clip-play-btn { opacity: 1; }
+.play-circle {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,140,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(255,140,0,0.5);
+  transition: transform 0.2s;
+}
+.clip-thumb:hover .play-circle { transform: scale(1.08); }
+.play-circle svg { width: 20px; height: 20px; fill: #000; margin-left: 2px; }
+
+.clip-duration {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.78); backdrop-filter: blur(4px);
+  font-size: 11px; font-weight: 700; color: white;
+  padding: 3px 8px; border-radius: 5px;
+  font-family: monospace; letter-spacing: 0.05em;
+}
+.clip-num {
+  position: absolute; top: 8px; left: 8px;
+  background: var(--orange); color: #000;
+  font-size: 10px; font-weight: 900;
+  padding: 3px 9px; border-radius: 5px; letter-spacing: 0.06em;
+}
+
+.clip-body { padding: 14px 16px 16px; }
+.clip-title {
+  font-size: 13px; font-weight: 800; margin-bottom: 6px;
+  line-height: 1.4; color: var(--text);
+}
+.clip-reason {
+  font-size: 12px; color: var(--muted2);
+  line-height: 1.65; margin-bottom: 14px;
+}
 .clip-actions { display: flex; gap: 8px; }
-
 .dl-btn {
-  flex: 1; padding: 9px 10px;
-  border-radius: 8px; font-size: 12px; font-weight: 600;
-  text-align: center; text-decoration: none;
-  cursor: pointer; transition: all 0.2s;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
+  flex: 1; padding: 9px 10px; border-radius: 8px;
+  font-size: 11px; font-weight: 700; font-family: inherit;
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: all 0.2s; display: flex; align-items: center;
+  justify-content: center; gap: 5px; letter-spacing: 0.03em;
+  border: 1px solid transparent;
 }
-.dl-landscape {
-  background: rgba(124,58,237,0.12);
-  border: 1px solid rgba(124,58,237,0.35);
-  color: #a78bfa;
-}
-.dl-landscape:hover { background: rgba(124,58,237,0.22); }
-.dl-shorts {
-  background: rgba(79,70,229,0.12);
-  border: 1px solid rgba(79,70,229,0.35);
-  color: #818cf8;
-}
-.dl-shorts:hover { background: rgba(79,70,229,0.22); }
+.dl-landscape { background: rgba(255,140,0,0.08); border-color: rgba(255,140,0,0.22); color: var(--orange); }
+.dl-landscape:hover { background: rgba(255,140,0,0.18); box-shadow: 0 0 12px rgba(255,140,0,0.15); }
+.dl-shorts   { background: rgba(255,184,0,0.08); border-color: rgba(255,184,0,0.22); color: var(--gold); }
+.dl-shorts:hover   { background: rgba(255,184,0,0.18); box-shadow: 0 0 12px rgba(255,184,0,0.15); }
 
-.empty { text-align: center; padding: 60px 24px; color: var(--muted); font-size: 14px; }
-.empty-icon { font-size: 40px; display: block; margin-bottom: 12px; }
+/* ── Modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; animation: fadein 0.18s ease; }
+@keyframes fadein { from{opacity:0} to{opacity:1} }
+.modal-box {
+  background: var(--s1); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px; overflow: hidden;
+  max-width: 92vw; max-height: 92vh;
+  display: flex; flex-direction: column;
+  animation: slideup 0.22s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+}
+@keyframes slideup { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+.modal-top {
+  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.modal-title { font-size: 14px; font-weight: 700; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--s2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted2); font-size: 18px; transition: all 0.2s;
+}
+.modal-close:hover { border-color: var(--fail); color: var(--fail); }
+.modal-video { max-width: 100%; max-height: calc(92vh - 72px); display: block; }
+
+/* ── Empty state ── */
+.empty {
+  text-align: center; padding: 72px 24px;
+  border: 1px dashed rgba(255,255,255,0.07);
+  border-radius: 20px; margin-bottom: 24px;
+  background: rgba(255,255,255,0.01);
+}
+.empty-icon { font-size: 44px; display: block; margin-bottom: 16px; }
+.empty h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+.empty p  { font-size: 13px; color: var(--muted2); }
+
+@media (max-width: 640px) {
+  header { padding: 0 16px; }
+  .hero  { padding: 48px 16px 36px; }
+  .hero-stats { gap: 20px; }
+  .hstat-num  { font-size: 22px; }
+  .pipeline-wrap { overflow-x: auto; padding: 16px; }
+  .pipeline { min-width: 400px; }
+  .clips-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 32px; }
+}
 </style>
 </head>
 <body>
 
+<!-- ── Film strip ── -->
+<div class="filmstrip"></div>
+
+<!-- ── Header ── -->
 <header>
-  <span class="logo">🎬 Chalchitra</span>
-  <span class="tagline">AI Clip Studio — Upload · Transcribe · Cut · Render</span>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+    </div>
+    <span class="logo-name">CHALCH<em>I</em>TRA</span>
+  </div>
+  <div class="header-right">
+    <div class="header-stat" id="headerStat">
+      <span class="dot"></span>
+      <span id="headerStatText">AI Clip Studio</span>
+    </div>
+  </div>
 </header>
 
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-eyebrow">Powered by Whisper · Groq · FFmpeg</div>
+    <h1>Turn long videos into<br><span class="grad">viral short clips</span></h1>
+    <p class="hero-sub">Upload any video. AI transcribes, detects the best moments, renders polished clips — fully automated.</p>
+
+    <div class="hero-stats">
+      <div class="hstat">
+        <span class="hstat-num orange" id="statEpisodes">0</span>
+        <span class="hstat-label">Videos processed</span>
+      </div>
+      <div class="hstat-divider"></div>
+      <div class="hstat">
+        <span class="hstat-num" id="statClips">0</span>
+        <span class="hstat-label">Clips generated</span>
+      </div>
+      <div class="hstat-divider"></div>
+      <div class="hstat">
+        <span class="hstat-num">5</span>
+        <span class="hstat-label">AI pipeline steps</span>
+      </div>
+    </div>
+
+    <div class="upload-wrap">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <span class="fc tl"></span><span class="fc tr"></span>
+        <span class="fc bl"></span><span class="fc br"></span>
+        <div class="upload-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+        </div>
+        <h2>Drop your video here</h2>
+        <p>MP4, MOV, MKV, WebM · MP3, M4A, WAV · any length</p>
+        <button class="btn btn-primary" id="uploadBtn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          Choose File
+        </button>
+        <input type="file" id="fileInput" accept=".mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg">
+      </div>
+      <div class="upload-status" id="uploadStatus">
+        <div class="spinner"></div>
+        <span>Uploading and starting pipeline…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Episodes ── -->
 <div class="container">
-
-  <!-- Upload -->
-  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-    <span class="upload-icon">📹</span>
-    <h2>Drop your video here</h2>
-    <p>MP4, MOV, MKV, WebM, MP3, M4A — any length</p>
-    <button class="btn btn-primary" id="uploadBtn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
-      Choose File
-    </button>
-    <input type="file" id="fileInput" accept=".mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg">
-  </div>
-
-  <div class="upload-status" id="uploadStatus">
-    <div class="spinner"></div>
-    <span>Uploading and starting pipeline…</span>
-  </div>
-
   <div id="episodesWrap"></div>
+</div>
 
+<!-- ── Video modal ── -->
+<div class="modal-overlay" id="videoModal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-top">
+      <span class="modal-title" id="modalTitle">Preview</span>
+      <div class="modal-close" onclick="closeModal()">×</div>
+    </div>
+    <video class="modal-video" id="modalVideo" controls autoplay></video>
+  </div>
 </div>
 
 <script>
-const STEPS = ['transcribe','enrich','detect','ffmpeg','render'];
-const LABELS = { transcribe:'Transcribe', enrich:'Enrich', detect:'Detect', ffmpeg:'Cut Clips', render:'Render' };
-const ICONS  = { transcribe:'🎙️', enrich:'✨', detect:'🎯', ffmpeg:'✂️', render:'🎬' };
+const STEPS  = ['transcribe','enrich','detect','ffmpeg','render'];
+const LABELS = { transcribe:'Transcribe', enrich:'Enrich', detect:'Detect', ffmpeg:'Cut', render:'Render' };
+const ICONS  = { transcribe:'🎙', enrich:'✨', detect:'🎯', ffmpeg:'✂', render:'🎬' };
 
 let episodes = JSON.parse(localStorage.getItem('ch_episodes') || '{}');
-const timers  = {};
+const timers = {};
 
-// ── Upload ────────────────────────────────────────────────────────────────────
-const zone       = document.getElementById('uploadZone');
-const fileInput  = document.getElementById('fileInput');
-const statusBar  = document.getElementById('uploadStatus');
-const uploadBtn  = document.getElementById('uploadBtn');
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  const eps = Object.values(episodes);
+  const epCount   = eps.length;
+  const clipCount = eps.reduce((a, e) => a + (e.clips||[]).filter(c=>c.shorts_path||c.landscape_path).length, 0);
+  animCount('statEpisodes', epCount);
+  animCount('statClips', clipCount);
+  const txt = epCount
+    ? `${epCount} video${epCount>1?'s':''} · ${clipCount} clip${clipCount!==1?'s':''}`
+    : 'AI Clip Studio';
+  document.getElementById('headerStatText').textContent = txt;
+}
 
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+function animCount(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const current = parseInt(el.textContent) || 0;
+  if (current === target) return;
+  const step = target > current ? 1 : -1;
+  let v = current;
+  const t = setInterval(() => {
+    v += step; el.textContent = v;
+    if (v === target) clearInterval(t);
+  }, 60);
+}
+
+// ── Upload ────────────────────────────────────────────────────────────────
+const zone      = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const statusBar = document.getElementById('uploadStatus');
+const uploadBtn = document.getElementById('uploadBtn');
+
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) doUpload(e.dataTransfer.files[0]); });
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) doUpload(e.dataTransfer.files[0]);
+});
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) doUpload(fileInput.files[0]); });
 
 async function doUpload(file) {
   statusBar.style.display = 'flex';
   uploadBtn.disabled = true;
-  zone.style.opacity = '0.5';
-  zone.style.pointerEvents = 'none';
-
+  zone.style.opacity = '0.45'; zone.style.pointerEvents = 'none';
   try {
     const form = new FormData();
     form.append('file', file);
     const res  = await fetch('/api/upload/', { method: 'POST', body: form });
     const data = await res.json();
     const id   = data.episode_id;
-
-    episodes[id] = { id, fileName: file.name, title: file.name, jobs: {}, clips: [], done: false, ts: Date.now() };
-    save(); renderAll(); startPoll(id);
-  } catch(e) {
-    alert('Upload failed: ' + e.message);
-  } finally {
+    episodes[id] = { id, fileName: file.name, title: file.name, jobs:{}, clips:[], done:false, ts: Date.now() };
+    save(); renderAll(); startPoll(id); updateStats();
+  } catch(e) { alert('Upload failed: ' + e.message); }
+  finally {
     statusBar.style.display = 'none';
     uploadBtn.disabled = false;
-    zone.style.opacity = '';
-    zone.style.pointerEvents = '';
+    zone.style.opacity = ''; zone.style.pointerEvents = '';
     fileInput.value = '';
   }
 }
 
-// ── Polling ───────────────────────────────────────────────────────────────────
+// ── Polling ───────────────────────────────────────────────────────────────
 function startPoll(id) {
   if (timers[id]) return;
   timers[id] = setInterval(() => poll(id), 3000);
@@ -287,108 +687,197 @@ function startPoll(id) {
 
 async function poll(id) {
   try {
-    const [jr, er] = await Promise.all([
-      fetch(`/api/jobs/${id}`),
-      fetch(`/api/episodes/${id}`)
-    ]);
+    const [jr, er] = await Promise.all([fetch(`/api/jobs/${id}`), fetch(`/api/episodes/${id}`)]);
     const jobs = await jr.json();
     const ep   = await er.json();
-
-    episodes[id].jobs  = Object.fromEntries(jobs.map(j => [j.step, j]));
-    if (ep.title) episodes[id].title = ep.title;
-    if (ep.polished_clips) {
-      try { episodes[id].clips = JSON.parse(ep.polished_clips); } catch {}
-    }
-
-    const allDone   = jobs.length && jobs.every(j => j.status === 'done');
-    const anyFailed = jobs.some(j => j.status === 'failed');
-
-    if (allDone || anyFailed) {
-      episodes[id].done = true;
-      clearInterval(timers[id]);
-      delete timers[id];
-    }
-    save(); renderCard(id);
+    episodes[id].jobs = Object.fromEntries(jobs.map(j=>[j.step,j]));
+    if (ep.title)          episodes[id].title = ep.title;
+    if (ep.polished_clips) { try { episodes[id].clips = JSON.parse(ep.polished_clips); } catch{} }
+    const allDone   = jobs.length && jobs.every(j=>j.status==='done');
+    const anyFailed = jobs.some(j=>j.status==='failed');
+    if (allDone) { episodes[id].done=true; clearInterval(timers[id]); delete timers[id]; }
+    else if (anyFailed && timers[id]) { clearInterval(timers[id]); timers[id]=setInterval(()=>poll(id),10000); }
+    save(); renderCard(id); updateStats();
   } catch(e) { console.error(e); }
 }
 
 function save() { localStorage.setItem('ch_episodes', JSON.stringify(episodes)); }
+function fmtDur(s,e) { const d=Math.round(e-s); return `${Math.floor(d/60)}:${String(d%60).padStart(2,'0')}`; }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+// ── Render ────────────────────────────────────────────────────────────────
 function renderAll() {
   const wrap = document.getElementById('episodesWrap');
-  const ids  = Object.keys(episodes).sort((a,b) => (episodes[b].ts||0) - (episodes[a].ts||0));
-
+  const ids  = Object.keys(episodes).sort((a,b)=>(episodes[b].ts||0)-(episodes[a].ts||0));
   if (!ids.length) {
-    wrap.innerHTML = `<div class="empty"><span class="empty-icon">🎞️</span>No episodes yet — upload a video above</div>`;
+    wrap.innerHTML = `<div class="empty">
+      <span class="empty-icon">🎞️</span>
+      <h3>No videos yet</h3>
+      <p>Drop a video above — the AI pipeline will handle the rest</p>
+    </div>`;
     return;
   }
-
-  ids.forEach(id => {
-    if (!document.getElementById(`ep-${id}`)) {
-      const el = document.createElement('div');
-      wrap.appendChild(el);
-    }
-    renderCard(id);
-  });
+  ids.forEach(id => renderCard(id));
 }
 
 function renderCard(id) {
-  const ep  = episodes[id];
+  const ep   = episodes[id];
   const wrap = document.getElementById('episodesWrap');
   let card   = document.getElementById(`ep-${id}`);
-
   if (!card) { card = document.createElement('div'); wrap.prepend(card); }
-  card.id        = `ep-${id}`;
-  card.className = `ep-card ${ep.done ? 'complete' : ''}`;
+  card.id = `ep-${id}`;
 
-  const allFailed = Object.values(ep.jobs).some(j => j.status === 'failed');
+  const anyFailed = Object.values(ep.jobs).some(j=>j.status==='failed');
+  const isProc    = !ep.done && !anyFailed;
+  card.className  = `ep-card ${ep.done?'complete':''} ${isProc?'processing':''} ${anyFailed&&!ep.done?'has-error':''}`;
+
   const badge = ep.done
-    ? (allFailed ? '<span class="ep-badge failed">❌ Failed</span>' : '<span class="ep-badge complete">✅ Done</span>')
-    : '<span class="ep-badge processing">⏳ Processing</span>';
+    ? (anyFailed?`<span class="ep-badge failed">Failed</span>`:`<span class="ep-badge complete">✓ Complete</span>`)
+    : `<span class="ep-badge processing">⏳ Processing</span>`;
 
-  const stepsHtml = STEPS.map(s => {
-    const job    = ep.jobs[s];
-    const status = job ? job.status : 'pending';
-    const icon   = status === 'done' ? '✅' : status === 'processing' ? '⏳' : status === 'failed' ? '❌' : '⬜';
-    return `<div class="pipe-step ${status}">
-      <span class="s-icon">${icon}</span>${LABELS[s]}
+  const deleteBtn = `<button class="ep-delete" onclick="deleteEpisode('${id}')" title="Remove">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+    </svg>
+  </button>`;
+
+  // Pipeline
+  let pipeHtml = '<div class="pipeline">';
+  STEPS.forEach((s,i) => {
+    const job    = ep.jobs[s]||{};
+    const status = job.status||'pending';
+    const icon   = status==='done'?'✓':status==='failed'?'✕':ICONS[s];
+    pipeHtml += `<div class="pipe-step ${status}">
+      <div class="pipe-dot">${icon}</div>
+      <div class="pipe-label">${LABELS[s]}</div>
     </div>`;
-  }).join('');
+    if (i < STEPS.length-1) {
+      pipeHtml += `<div class="pipe-connector ${status==='done'?'done':''} ${status==='processing'?'active':''}"></div>`;
+    }
+  });
+  pipeHtml += '</div>';
 
+  // Clips
+  const goodClips = (ep.clips||[]).filter(c=>c.shorts_path||c.landscape_path);
   let clipsHtml = '';
-  const goodClips = (ep.clips || []).filter(c => c.landscape_path || c.shorts_path);
   if (goodClips.length) {
-    const cards = goodClips.map((c, i) => {
-      const lf = c.landscape_path ? c.landscape_path.split('/').pop() : null;
+    const cards = goodClips.map((c,i) => {
       const sf = c.shorts_path    ? c.shorts_path.split('/').pop()    : null;
-      const lBtn = lf ? `<a class="dl-btn dl-landscape" href="/files/${lf}" download>📺 Landscape</a>` : '';
-      const sBtn = sf ? `<a class="dl-btn dl-shorts"    href="/files/${sf}" download>📱 Shorts</a>`    : '';
-      return `<div class="clip-card">
-        <div class="clip-name">${c.title || `Clip ${i+1}`}</div>
-        <div class="clip-why">${c.reason || ''}</div>
-        <div class="clip-actions">${lBtn}${sBtn}</div>
+      const lf = c.landscape_path ? c.landscape_path.split('/').pop() : null;
+      const src = sf?`/files/${sf}`:(lf?`/files/${lf}`:null);
+      const dur = (c.start_seconds!=null&&c.end_seconds!=null)?fmtDur(c.start_seconds,c.end_seconds):'';
+      const safeTitle = (c.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      const lBtn = lf?`<a class="dl-btn dl-landscape" href="/files/${lf}" download>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>16:9</a>`:'';
+      const sBtn = sf?`<a class="dl-btn dl-shorts" href="/files/${sf}" download>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Shorts</a>`:'';
+
+      const thumbHtml = src
+        ? `<video data-src="${src}" preload="none" muted playsinline></video>
+           <div class="clip-play-btn" onclick="openModal('${src}','${safeTitle}')">
+             <div class="play-circle"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
+           </div>`
+        : `<div class="clip-thumb-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/></svg></div>`;
+
+      return `<div class="clip-card" data-id="${id}-${i}">
+        <div class="sheen"></div>
+        <div class="clip-thumb">
+          ${thumbHtml}
+          <span class="clip-num">CLIP ${i+1}</span>
+          ${dur?`<span class="clip-duration">${dur}</span>`:''}
+        </div>
+        <div class="clip-body">
+          <div class="clip-title">${c.title||`Clip ${i+1}`}</div>
+          <div class="clip-reason">${c.reason||''}</div>
+          <div class="clip-actions">${lBtn}${sBtn}</div>
+        </div>
       </div>`;
     }).join('');
-    clipsHtml = `<div class="section-label">Generated Clips</div><div class="clips-grid">${cards}</div>`;
+
+    clipsHtml = `<div class="clips-section">
+      <div class="clips-heading">Generated Clips</div>
+      <div class="clips-grid">${cards}</div>
+    </div>`;
   }
 
   card.innerHTML = `
-    <div class="ep-top">
-      <div>
-        <div class="ep-name">${ep.title}</div>
-        <div class="ep-meta">${id.split('-')[0]}…</div>
+    <div class="ep-header">
+      <div class="ep-info">
+        <div class="ep-icon">🎬</div>
+        <div>
+          <div class="ep-name">${ep.title}</div>
+          <div class="ep-meta">ID: ${id.split('-')[0]}…</div>
+        </div>
       </div>
-      ${badge}
+      <div style="display:flex;align-items:center;gap:6px">${badge}${deleteBtn}</div>
     </div>
-    <div class="pipeline">${stepsHtml}</div>
+    <div class="pipeline-wrap">${pipeHtml}</div>
     ${clipsHtml}
   `;
+
+  // Lazy video thumbnails
+  card.querySelectorAll('video[data-src]').forEach(v => {
+    v.src = v.dataset.src;
+    v.addEventListener('loadedmetadata', () => { v.currentTime = 1; });
+    v.addEventListener('seeked', () => v.classList.add('loaded'));
+  });
+
+  // 3D tilt on clip cards
+  card.querySelectorAll('.clip-card').forEach(cc => {
+    const sheen = cc.querySelector('.sheen');
+    cc.addEventListener('mousemove', e => {
+      const r  = cc.getBoundingClientRect();
+      const dx = (e.clientX - r.left  - r.width/2)  / (r.width/2);
+      const dy = (e.clientY - r.top   - r.height/2) / (r.height/2);
+      const mx = ((e.clientX - r.left) / r.width * 100).toFixed(1);
+      const my = ((e.clientY - r.top)  / r.height * 100).toFixed(1);
+      cc.style.transform = `perspective(900px) rotateY(${dx*7}deg) rotateX(${-dy*6}deg) translateY(-4px) scale(1.01)`;
+      cc.style.transition = 'transform 0.08s ease, border-color 0.3s, box-shadow 0.3s';
+      if (sheen) sheen.style.setProperty('--mx', mx+'%'), sheen.style.setProperty('--my', my+'%');
+    });
+    cc.addEventListener('mouseleave', () => {
+      cc.style.transform = '';
+      cc.style.transition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1), border-color 0.3s, box-shadow 0.3s';
+    });
+  });
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(src, title) {
+  const m = document.getElementById('videoModal');
+  const v = document.getElementById('modalVideo');
+  v.src = src;
+  document.getElementById('modalTitle').textContent = title||'Preview';
+  m.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e) {
+  if (e && e.target!==document.getElementById('videoModal') && !e.target.closest('.modal-close')) return;
+  const m = document.getElementById('videoModal');
+  const v = document.getElementById('modalVideo');
+  m.classList.remove('open'); v.pause(); v.src='';
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+// ── Delete ────────────────────────────────────────────────────────────────
+function deleteEpisode(id) {
+  if (timers[id]) { clearInterval(timers[id]); delete timers[id]; }
+  delete episodes[id];
+  save(); updateStats();
+  const card = document.getElementById(`ep-${id}`);
+  if (card) {
+    card.style.transition = 'all 0.3s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.96)';
+    setTimeout(() => { card.remove(); renderAll(); }, 300);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+updateStats();
 renderAll();
-Object.keys(episodes).forEach(id => { if (!episodes[id].done) startPoll(id); });
+Object.keys(episodes).forEach(id => { if(!episodes[id].done) startPoll(id); });
 </script>
 </body>
 </html>
