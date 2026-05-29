@@ -49,7 +49,7 @@ async def upload_media(
 
 
 async def trigger_pipeline(episode_id: str, file_path: str):
-    payload = {"episode_id": episode_id, "file_path": file_path}
+    payload = {"episode_id": episode_id, "file_path": file_path, "transcription_engine": "indic"}
     logger.info(f"[orchestrator] POST {ORCHESTRATOR_URL} payload={payload}")
     try:
         async with httpx.AsyncClient(timeout=600) as client:

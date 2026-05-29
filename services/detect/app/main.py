@@ -1,13 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-import anthropic
+from groq import Groq
 import os
 import json
 
 app = FastAPI()
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 class DetectRequest(BaseModel):
     episode_id: str
@@ -15,11 +14,9 @@ class DetectRequest(BaseModel):
     srt: Optional[str] = ""
     system_prompt: Optional[str] = None
 
-
 @app.get("/")
 def health():
     return {"status": "detect service running"}
-
 
 @app.post("/detect")
 def detect(req: DetectRequest):
@@ -29,23 +26,19 @@ def detect(req: DetectRequest):
     word_count = len(req.transcript.split())
     estimated_duration = word_count / 2.5
 
-    prompt = req.system_prompt or f"""You are an expert viral short-form video editor for Instagram Reels and TikTok.
-
-Analyze this transcript (estimated duration: {estimated_duration:.0f} seconds) and find the best clips.
+    system = "You are a viral short-form video editor. Return ONLY valid JSON, no markdown, no explanation."
+    prompt = req.system_prompt or f"""Analyze this transcript (estimated duration: {estimated_duration:.0f} seconds) and find the best clips.
 
 Transcript:
 {req.transcript[:6000]}
 
-RULES:
+Rules:
 - Each clip must be 20-90 seconds long
 - Pick 2-4 clips maximum
-- Each clip must make sense on its own
-- Start each clip at a natural sentence beginning
-- Prioritize: surprising facts, strong opinions, emotional moments, actionable tips
-- If the video is short (under 2 minutes), just pick 1-2 clips
 - Clips must not overlap
+- If video is short (under 2 min), pick 1-2 clips
 
-Return ONLY valid JSON, no markdown, no explanation:
+Return ONLY valid JSON:
 {{
   "clips": [
     {{
@@ -57,29 +50,24 @@ Return ONLY valid JSON, no markdown, no explanation:
   ]
 }}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,
+        max_tokens=1000
     )
 
-    text = message.content[0].text.strip()
-
-    if "```" in text:
-        parts = text.split("```")
-        for part in parts:
-            if "{" in part:
-                text = part
-                if text.startswith("json"):
-                    text = text[4:]
-                break
-    text = text.strip()
+    text = response.choices[0].message.content.strip()
+    text = text.replace('```json', '').replace('```', '').strip()
 
     try:
         data = json.loads(text)
         clips = data.get("clips", [])
     except Exception:
-        raise HTTPException(500, f"Failed to parse Claude response: {text[:300]}")
+        clips = []
 
     valid_clips = []
     for clip in clips:
@@ -98,19 +86,17 @@ Return ONLY valid JSON, no markdown, no explanation:
         clip_end = min(60, estimated_duration)
         if clip_end >= 15:
             valid_clips.append({
-                "title": "Key Insight",
+                "title": "Key Moment",
                 "start_seconds": 0,
                 "end_seconds": clip_end,
                 "reason": "Best available segment",
             })
 
     if not valid_clips:
-        raise HTTPException(500, "Video too short to create clips (minimum 15 seconds needed)")
-
-    valid_clips = valid_clips[:4]
+        raise HTTPException(500, "Video too short to create clips")
 
     return {
         "episode_id": req.episode_id,
-        "clips": valid_clips,
-        "total_clips": len(valid_clips),
+        "clips": valid_clips[:4],
+        "total_clips": len(valid_clips[:4]),
     }

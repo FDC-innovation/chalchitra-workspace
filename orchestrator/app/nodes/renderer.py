@@ -2,18 +2,18 @@ import httpx
 from app.state import ChalchitraState
 
 async def renderer_node(state: ChalchitraState) -> dict:
-    approved_clips = state.get("approved_clips") or []
+    clips_to_render = state.get("cut_clips") or []
     rendered_clips = []
     failed_clips = []
 
     async with httpx.AsyncClient() as client:
-        for clip in approved_clips:
+        for clip in clips_to_render:
             try:
                 response = await client.post(
                     "http://renderer:8006/render",
                     json={
                         "episode_id": state["episode_id"],
-                        "clip_path": clip.get("file_path"),  # ✅ fixed
+                        "clip_path": clip.get("file_path"),
                         "title": clip.get("title"),
                         "start_seconds": clip.get("start_seconds"),
                         "end_seconds": clip.get("end_seconds"),

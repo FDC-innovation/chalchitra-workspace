@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-import anthropic
+from groq import Groq
 import os
 import json
 
 app = FastAPI()
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 
 class EnrichRequest(BaseModel):
@@ -25,36 +25,35 @@ def enrich(req: EnrichRequest):
     if not req.transcript.strip():
         raise HTTPException(400, "Empty transcript")
 
-    prompt = req.system_prompt or f"""You are a viral social media content strategist.
-
-Given this transcript, extract metadata to help create viral short-form clips.
+    system = "You are a viral social media content strategist. Return ONLY valid JSON, no markdown, no explanation."
+    prompt = req.system_prompt or f"""Given this transcript, extract metadata to help create viral short-form clips.
 
 Transcript:
 {req.transcript[:4000]}
 
-Return ONLY valid JSON (no markdown, no explanation):
+Return ONLY valid JSON:
 {{
   "title": "catchy overall title for the content",
-  "topic": "main topic in 3-5 words",
-  "hook": "most compelling opening line or idea",
-  "key_points": ["point 1", "point 2", "point 3"],
-  "target_audience": "who this is for",
-  "tone": "educational|motivational|entertaining|informational"
+  "show_notes": "2-3 sentence summary",
+  "tags": ["tag1", "tag2", "tag3"],
+  "chapters": [{{"title": "chapter title", "start_time": "0:00", "summary": "brief summary"}}]
 }}"""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,
+        max_tokens=1000
     )
 
-    text = message.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
+    text = text.replace('```json', '').replace('```', '').strip()
     try:
         data = json.loads(text)
     except Exception:
-        data = {"raw": text}
+        data = {"title": "Episode", "show_notes": text, "tags": [], "chapters": []}
 
-    return {
-        "episode_id": req.episode_id,
-        "enrichment": data,
-    }
+    return {"episode_id": req.episode_id, "enrichment": data}
