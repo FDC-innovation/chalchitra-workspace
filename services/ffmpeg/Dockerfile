@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
+# Download Anton (impact-style headline font) and Montserrat ExtraBold
+COPY fonts/ /usr/share/fonts/truetype/custom/
+RUN fc-cache -fv
+
 RUN pip install --upgrade pip
 
 RUN pip install --no-cache-dir \
@@ -17,7 +21,8 @@ RUN pip install --no-cache-dir \
     uvicorn \
     pydantic \
     pillow \
-    numpy
+    numpy \
+    opencv-python-headless
 
 COPY app/ ./app/
 

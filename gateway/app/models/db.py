@@ -27,6 +27,12 @@ class Episode(SQLModel, table=True):
     polished_clips: Optional[str] = None
     audio_file: Optional[str] = None
     thumbnail: Optional[str] = None
+    upload_mode: str = "auto"
+    caption_position: str = "bottom"
+    caption_style: str = "clean"
+    show_intro: bool = True
+    show_outro: bool = True
+    channel_handle: str = "@chalchitra"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

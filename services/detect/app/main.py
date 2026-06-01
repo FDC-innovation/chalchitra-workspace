@@ -62,6 +62,7 @@ Return ONLY a JSON array of exactly 3 clip objects. Each object must have:
 - start_seconds: clip start time in seconds (number)
 - end_seconds: clip end time in seconds (number)
 - reason: one sentence why this clip is engaging (string)
+- hook: a punchy hook sentence max 6 words shown as a static title on the video. Wrap the key action/verb word with [y] tags for yellow, and the most powerful noun/emotion word with [r] tags for red. Example: "Leaders [y]Control[/y] Their [r]Emotions[/r]"
 
 Rules:
 - Each clip must be between 30 and 90 seconds long (end_seconds - start_seconds)

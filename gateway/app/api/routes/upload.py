@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from sqlmodel import Session
 from app.core.database import get_session, create_db
 from app.models.db import Episode, Job
@@ -16,6 +16,12 @@ N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "http://n8n:5678/webhook/cha
 async def upload_media(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    upload_mode: str = Form("auto"),
+    caption_position: str = Form("bottom"),
+    caption_style: str = Form("clean"),
+    show_intro: str = Form("1"),
+    show_outro: str = Form("1"),
+    channel_handle: str = Form("@chalchitra"),
     session: Session = Depends(get_session),
 ):
     create_db()
@@ -30,7 +36,12 @@ async def upload_media(
     with open(dest_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    episode = Episode(id=episode_id, original_file=dest_path, status="processing")
+    episode = Episode(id=episode_id, original_file=dest_path, status="processing",
+                      upload_mode=upload_mode,
+                      caption_position=caption_position, caption_style=caption_style,
+                      show_intro=show_intro != "0",
+                      show_outro=show_outro != "0",
+                      channel_handle=channel_handle or "@chalchitra")
     session.add(episode)
 
     for step in ["transcribe", "enrich", "detect", "ffmpeg", "render"]:

@@ -97,47 +97,73 @@ async def run_pipeline(episode_id: str, file_path: str):
         logger.error(f"[pipeline] enrich failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
         return
 
-    # ── STEP 3: Detect clips ──────────────────────────────────────────────────
-    _set_job(episode_id, "detect", JobStatus.processing, "Detecting best clips...")
-    try:
-        srt_content = ""
-        if episode.srt_file and os.path.exists(episode.srt_file):
-            srt_content = open(episode.srt_file, encoding="utf-8").read()
-
-        async with httpx.AsyncClient(timeout=120) as client:
-            r = await client.post(f"{DETECT_URL}/detect", json={
-                "episode_id": episode_id,
-                "transcript": episode.transcript,
-                "srt":        srt_content,
-            })
-            r.raise_for_status()
-            data = r.json()
-
-        episode.detected_clips = json.dumps(data.get("clips", []))
+    # ── STEP 3: Detect clips (skipped in full-video mode) ─────────────────────
+    if episode.upload_mode == "full":
+        # Full video mode — use entire video as one clip, skip detection
+        _set_job(episode_id, "detect", JobStatus.done, "Full video mode — skipped")
+        full_clip = [{
+            "title":         episode.title or "Full Video",
+            "start_seconds": 0,
+            "end_seconds":   episode.duration_sec or 0,
+            "reason":        "Full video selected by user",
+            "hook":          episode.title or "",
+        }]
+        episode.detected_clips = json.dumps(full_clip)
         _save_episode(episode)
-        _set_job(episode_id, "detect", JobStatus.done, "Clips detected")
-        logger.info(f"[pipeline] detect done for {episode_id}")
-    except Exception as e:
-        _set_job(episode_id, "detect", JobStatus.failed, error=f"{type(e).__name__}: {e}")
-        logger.error(f"[pipeline] detect failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
-        return
+        logger.info(f"[pipeline] full video mode, skipping detect for {episode_id}")
+    else:
+        _set_job(episode_id, "detect", JobStatus.processing, "Detecting best clips...")
+        try:
+            srt_content = ""
+            if episode.srt_file and os.path.exists(episode.srt_file):
+                srt_content = open(episode.srt_file, encoding="utf-8").read()
+
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post(f"{DETECT_URL}/detect", json={
+                    "episode_id": episode_id,
+                    "transcript": episode.transcript,
+                    "srt":        srt_content,
+                })
+                r.raise_for_status()
+                data = r.json()
+
+            episode.detected_clips = json.dumps(data.get("clips", []))
+            _save_episode(episode)
+            _set_job(episode_id, "detect", JobStatus.done, "Clips detected")
+            logger.info(f"[pipeline] detect done for {episode_id}")
+        except Exception as e:
+            _set_job(episode_id, "detect", JobStatus.failed, error=f"{type(e).__name__}: {e}")
+            logger.error(f"[pipeline] detect failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+            return
 
     # ── STEP 4: Cut clips ────────────────────────────────────────────────────
     _set_job(episode_id, "ffmpeg", JobStatus.processing, "Cutting clips...")
     try:
         clips = json.loads(episode.detected_clips or "[]")
-        async with httpx.AsyncClient(timeout=300) as client:
-            r = await client.post(f"{FFMPEG_URL}/ffmpeg", json={
-                "episode_id": episode_id,
-                "file_path":  file_path,
-                "clips":      clips,
-            })
-            r.raise_for_status()
-            data = r.json()
 
-        episode.generated_clips = json.dumps(data.get("clips", []))
+        if episode.upload_mode == "full":
+            # Full video mode — just copy the file, no cutting needed
+            import shutil
+            output_dir  = os.path.dirname(file_path)
+            safe_title  = "full_video"
+            output_path = os.path.join(output_dir, f"{episode_id}_clip0_{safe_title}.mp4")
+            shutil.copy(file_path, output_path)
+            generated_clips = [{**clips[0], "file_path": output_path, "status": "done"}]
+            _set_job(episode_id, "ffmpeg", JobStatus.done, "Full video ready")
+        else:
+            async with httpx.AsyncClient(timeout=300) as client:
+                r = await client.post(f"{FFMPEG_URL}/ffmpeg", json={
+                    "episode_id": episode_id,
+                    "file_path":  file_path,
+                    "clips":      clips,
+                })
+                r.raise_for_status()
+                data = r.json()
+            generated_clips = data.get("clips", [])
+            _set_job(episode_id, "ffmpeg", JobStatus.done, "Clips cut")
+
+        episode.generated_clips = json.dumps(generated_clips)
         _save_episode(episode)
-        _set_job(episode_id, "ffmpeg", JobStatus.done, "Clips cut")
         logger.info(f"[pipeline] ffmpeg done for {episode_id}")
     except Exception as e:
         _set_job(episode_id, "ffmpeg", JobStatus.failed, error=f"{type(e).__name__}: {e}")
@@ -182,6 +208,12 @@ async def run_pipeline(episode_id: str, file_path: str):
                         "show_title":    episode.title or "Chalchitra",
                         "clip_index":    i,
                         "words_json":    episode.words_json or "[]",
+                        "hook":          clip.get("hook") or "",
+                        "caption_position":  episode.caption_position or "bottom",
+                        "caption_style":     episode.caption_style or "clean",
+                        "show_intro":        episode.show_intro if episode.show_intro is not None else True,
+                        "show_outro":        episode.show_outro if episode.show_outro is not None else True,
+                        "channel_handle":    episode.channel_handle or "@chalchitra",
                     })
                 if r.status_code == 200:
                     polished.append({**clip, **r.json()})

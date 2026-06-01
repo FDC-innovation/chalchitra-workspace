@@ -224,7 +224,16 @@ header {
 .upload-zone:hover .upload-icon-wrap svg { stroke: var(--orange); }
 
 .upload-zone h2 { font-size: 21px; font-weight: 800; margin-bottom: 8px; }
-.upload-zone p  { color: var(--muted2); font-size: 13px; margin-bottom: 26px; }
+.upload-zone p  { color: var(--muted2); font-size: 13px; margin-bottom: 20px; }
+
+.pos-btn {
+  padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  font-family: inherit; cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--muted2); transition: all 0.2s;
+  letter-spacing: 0.03em;
+}
+.pos-btn:hover { border-color: var(--orange); color: var(--orange); }
+.pos-btn.selected { background: var(--orange); color: #000; border-color: var(--orange); }
 input[type=file] { display: none; }
 
 /* ── Buttons ── */
@@ -568,7 +577,7 @@ input[type=file] { display: none; }
     </div>
 
     <div class="upload-wrap">
-      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-zone" id="uploadZone">
         <span class="fc tl"></span><span class="fc tr"></span>
         <span class="fc bl"></span><span class="fc br"></span>
         <div class="upload-icon-wrap">
@@ -579,19 +588,71 @@ input[type=file] { display: none; }
         </div>
         <h2>Drop your video here</h2>
         <p>MP4, MOV, MKV, WebM · MP3, M4A, WAV · any length</p>
-        <button class="btn btn-primary" id="uploadBtn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">
+        <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
           Choose File
         </button>
         <input type="file" id="fileInput" accept=".mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg">
       </div>
-      <div class="upload-status" id="uploadStatus">
+
+    <!-- Settings — outside the upload box, no click conflict -->
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;align-items:center">
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted2);width:130px;text-align:right">MODE</span>
+        <div style="display:flex;gap:6px">
+          <button class="pos-btn selected" id="modeAuto" onclick="setMode(this,'auto')">Auto Clips</button>
+          <button class="pos-btn" id="modeFull" onclick="setMode(this,'full')">Full Video</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted2);width:130px;text-align:right">CAPTION STYLE</span>
+        <div style="display:flex;gap:6px">
+          <button class="pos-btn" data-val="cinematic" onclick="setCaptionStyle(this)" id="styleCinematic">Cinematic</button>
+          <button class="pos-btn" data-val="clean"     onclick="setCaptionStyle(this)" id="styleClean">Clean</button>
+          <button class="pos-btn" data-val="mixed"     onclick="setCaptionStyle(this)" id="styleMixed">Mixed</button>
+          <button class="pos-btn" data-val="box"       onclick="setCaptionStyle(this)" id="styleBox">Box</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted2);width:130px;text-align:right">CAPTION POSITION</span>
+        <div style="display:flex;gap:6px">
+          <button class="pos-btn" data-pos="top"    onclick="setPos(this)">Top</button>
+          <button class="pos-btn" data-pos="center" onclick="setPos(this)">Center</button>
+          <button class="pos-btn" data-pos="bottom" onclick="setPos(this)" id="posBottom">Bottom</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted2);width:130px;text-align:right">INTRO / OUTRO</span>
+        <div style="display:flex;gap:6px">
+          <button class="pos-btn selected" id="toggleIntro" onclick="toggleOpt(this,'intro')">Intro ✓</button>
+          <button class="pos-btn selected" id="toggleOutro" onclick="toggleOpt(this,'outro')">Outro ✓</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted2);width:130px;text-align:right">HANDLE</span>
+        <input id="handleInput" type="text" value="@chalchitra" placeholder="@yourhandle"
+          style="background:var(--s2);border:1px solid var(--border);border-radius:8px;
+                 padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;
+                 width:160px;outline:none;"
+          onfocus="this.style.borderColor='var(--orange)'"
+          onblur="this.style.borderColor='var(--border)'">
+      </div>
+
+    </div>
+
+    <div class="upload-status" id="uploadStatus">
         <div class="spinner"></div>
         <span>Uploading and starting pipeline…</span>
       </div>
     </div>
   </div>
 </div>
+
 
 <!-- ── Episodes ── -->
 <div class="container">
@@ -643,6 +704,48 @@ function animCount(id, target) {
   }, 60);
 }
 
+// ── Mode ──────────────────────────────────────────────────────────────────
+let uploadMode = 'auto';
+function setMode(btn, val) {
+  document.querySelectorAll('#modeAuto,#modeFull').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  uploadMode = val;
+}
+
+// ── Intro / Outro toggles ─────────────────────────────────────────────────
+let showIntro = true, showOutro = true;
+function toggleOpt(btn, which) {
+  if (which === 'intro') {
+    showIntro = !showIntro;
+    btn.textContent = showIntro ? 'Intro ✓' : 'Intro ✗';
+    btn.classList.toggle('selected', showIntro);
+  } else {
+    showOutro = !showOutro;
+    btn.textContent = showOutro ? 'Outro ✓' : 'Outro ✗';
+    btn.classList.toggle('selected', showOutro);
+  }
+}
+
+// ── Caption style ─────────────────────────────────────────────────────────
+let captionStyle = 'cinematic';
+document.getElementById('styleCinematic').classList.add('selected');
+
+function setCaptionStyle(btn) {
+  document.querySelectorAll('[data-val]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  captionStyle = btn.dataset.val;
+}
+
+// ── Caption position ──────────────────────────────────────────────────────
+let captionPosition = 'bottom';
+document.getElementById('posBottom').classList.add('selected');
+
+function setPos(btn) {
+  document.querySelectorAll('[data-pos]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  captionPosition = btn.dataset.pos;
+}
+
 // ── Upload ────────────────────────────────────────────────────────────────
 const zone      = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
@@ -655,6 +758,13 @@ zone.addEventListener('drop', e => {
   e.preventDefault(); zone.classList.remove('drag-over');
   if (e.dataTransfer.files[0]) doUpload(e.dataTransfer.files[0]);
 });
+// Only open file picker when clicking the zone background — not buttons inside
+zone.addEventListener('click', e => {
+  if (e.target === zone || e.target.closest('.upload-icon-wrap') ||
+      e.target.tagName === 'H2' || e.target.tagName === 'P') {
+    document.getElementById('fileInput').click();
+  }
+});
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) doUpload(fileInput.files[0]); });
 
 async function doUpload(file) {
@@ -664,6 +774,12 @@ async function doUpload(file) {
   try {
     const form = new FormData();
     form.append('file', file);
+    form.append('upload_mode', uploadMode);
+    form.append('caption_position', captionPosition);
+    form.append('caption_style', captionStyle);
+    form.append('show_intro', showIntro ? '1' : '0');
+    form.append('show_outro', showOutro ? '1' : '0');
+    form.append('channel_handle', document.getElementById('handleInput').value || '@chalchitra');
     const res  = await fetch('/api/upload/', { method: 'POST', body: form });
     const data = await res.json();
     const id   = data.episode_id;
