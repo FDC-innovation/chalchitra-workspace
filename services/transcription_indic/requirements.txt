@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-transformers
-torch
-torchaudio
-librosa
-soundfile
-accelerate

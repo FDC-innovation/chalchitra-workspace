@@ -13,6 +13,7 @@ RUN pip install --upgrade pip && pip install --no-cache-dir \
     openai-whisper \
     torch \
     torchaudio \
+    indic-transliteration \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY app/ ./app/

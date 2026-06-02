@@ -59,9 +59,19 @@ def get_clip_duration(path: str) -> float:
 
 def find_font(size: int) -> ImageFont.FreeTypeFont:
     candidates = [
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return ImageFont.truetype(p, size)
+    return ImageFont.load_default()
+
+def find_latin_font(size: int) -> ImageFont.FreeTypeFont:
+    """For English intro/outro cards"""
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
     ]
     for p in candidates:
         if os.path.exists(p):
@@ -90,7 +100,7 @@ def reframe_to_9x16(input_path: str, output_path: str):
 
 def make_intro_card(title: str, width: int, height: int,
                     fps: int, duration: float, output_path: str):
-    font_large = find_font(96)
+    font_large = find_latin_font(96)
     total_frames = int(duration * fps)
     frame_dir = tempfile.mkdtemp(prefix="intro_")
 
@@ -150,8 +160,8 @@ def make_intro_card(title: str, width: int, height: int,
 def make_outro_card(channel_name: str, cta_text: str,
                     width: int, height: int,
                     fps: int, duration: float, output_path: str):
-    font_channel = find_font(100)
-    font_cta = find_font(56)
+    font_channel = find_latin_font(100)
+    font_cta = find_latin_font(56)
     total_frames = int(duration * fps)
     frame_dir = tempfile.mkdtemp(prefix="outro_")
 
@@ -212,7 +222,7 @@ def draw_word_frame(word_text: str, width: int, height: int,
                     font: ImageFont.FreeTypeFont) -> Image.Image:
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    text = word_text.upper()
+    text = word_text
     bbox = draw.textbbox((0, 0), text, font=font)
     tw = bbox[2] - bbox[0]
     x = (width - tw) // 2

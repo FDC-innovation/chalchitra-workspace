@@ -127,29 +127,6 @@ services:
     networks:
       - chalchitra
 
-  transcription_indic:
-    environment:
-      - HF_TOKEN=${HF_TOKEN}
-      - PYTHONUNBUFFERED=1
-    build:
-      context: ./services/transcription_indic
-      dockerfile: Dockerfile
-    container_name: chalchitra-transcription-indic
-    ports:
-      - "8011:8011"
-    volumes:
-      - ./shared/volumes:/app/shared/volumes
-      - /Users/adityakumartonk/.cache/huggingface:/root/.cache/huggingface
-    networks:
-      - chalchitra
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 300s
-
   diarization:
     build: ./services/diarization
     container_name: chalchitra-diarization
@@ -238,6 +215,3 @@ networks:
 volumes:
   ollama_data:
   whisper_cache:
-  indic_model_cache:
-
-

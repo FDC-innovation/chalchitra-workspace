@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import os
 
-# Fix OpenBLAS deadlock on ARM/Apple Silicon BEFORE importing torch/whisper
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -11,9 +10,9 @@ import whisper
 
 app = FastAPI()
 
-print("Loading Whisper model...")
+print("Loading Whisper model...", flush=True)
 model = whisper.load_model("base")
-print("Whisper model loaded.")
+print("Whisper model loaded.", flush=True)
 
 
 class TranscribeRequest(BaseModel):
@@ -31,7 +30,25 @@ def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
 
-    result = model.transcribe(req.file_path, word_timestamps=True)
+    print(f"Transcribing: {req.file_path}", flush=True)
+
+    # Detect language first
+    audio = whisper.load_audio(req.file_path)
+    audio = whisper.pad_or_trim(audio)
+    mel = whisper.log_mel_spectrogram(audio).to(model.device)
+    _, probs = model.detect_language(mel)
+    detected_lang = max(probs, key=probs.get)
+    print(f"Detected language: {detected_lang}", flush=True)
+
+    # Translate to English regardless of source language
+    result = model.transcribe(
+        req.file_path,
+        task="translate",
+        word_timestamps=True,
+        fp16=False,
+        condition_on_previous_text=False,
+        temperature=0,
+    )
 
     words = []
     for segment in result.get("segments", []):
@@ -44,21 +61,17 @@ def transcribe(req: TranscribeRequest):
 
     srt_lines = []
     for i, segment in enumerate(result.get("segments", []), 1):
-        start = segment["start"]
-        end = segment["end"]
-        text = segment["text"].strip()
         srt_lines.append(
-            f"{i}\n"
-            f"{format_time(start)} --> {format_time(end)}\n"
-            f"{text}\n"
+            f"{i}\n{format_time(segment['start'])} --> {format_time(segment['end'])}\n{segment['text'].strip()}\n"
         )
-    srt = "\n".join(srt_lines)
+
+    print(f"Done. {len(words)} words. Lang: {detected_lang}", flush=True)
 
     return {
         "episode_id": req.episode_id,
         "text": result["text"],
         "words": words,
-        "srt": srt,
+        "srt": "\n".join(srt_lines),
     }
 
 

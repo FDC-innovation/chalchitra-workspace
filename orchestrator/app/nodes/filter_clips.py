@@ -1,3 +1,5 @@
+from app.logger import get_logger
+logger = get_logger("filter_clips")
 from app.state import ChalchitraState
 
 async def filter_clips_node(state: ChalchitraState) -> dict:
