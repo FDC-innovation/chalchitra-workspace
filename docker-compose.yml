@@ -98,6 +98,25 @@ services:
       retries: 5
       start_period: 15s
 
+  podcast_renderer:
+    build:
+      context: ./services/podcast_renderer
+      dockerfile: Dockerfile
+    container_name: chalchitra-podcast-renderer
+    ports:
+      - "8009:8009"
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
+    restart: unless-stopped
+    networks:
+      - chalchitra
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8009/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   ollama:
     image: ollama/ollama
     container_name: chalchitra-ollama
@@ -144,6 +163,7 @@ services:
       - "8007:8007"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     volumes:
       - ./shared/volumes:/app/shared/volumes
     networks:
@@ -156,6 +176,7 @@ services:
       - renderer
       - silence_detector
       - auto_editor
+      - podcast_renderer
 
   gateway:
     build: ./gateway
