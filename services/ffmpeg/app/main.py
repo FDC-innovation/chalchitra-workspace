@@ -31,7 +31,7 @@ def generate_clips(req: ClipRequest):
         start = clip.get("start_seconds", 0)
         end = clip.get("end_seconds", 30)
         title = clip.get("title", f"clip_{i}")
-        duration = min(end - start, MAX_CLIP_DURATION)
+        duration = end - start
 
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:40]
         output_path = os.path.join(output_dir, f"{req.episode_id}_clip{i}_{safe_title}.mp4")
@@ -64,3 +64,19 @@ def generate_clips(req: ClipRequest):
             generated.append({**clip, "status": "failed", "error": e.stderr.decode()})
 
     return {"episode_id": req.episode_id, "clips": generated}
+
+class DurationRequest(BaseModel):
+    file_path: str
+
+@app.post("/duration")
+def get_duration(req: DurationRequest):
+    if not os.path.exists(req.file_path):
+        raise HTTPException(status_code=404, detail=f"File not found: {req.file_path}")
+    probe = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-show_entries",
+         "format=duration", "-of", "csv=p=0", req.file_path],
+        capture_output=True, text=True
+    )
+    if probe.returncode != 0 or not probe.stdout.strip():
+        raise HTTPException(status_code=500, detail="Could not read duration")
+    return {"duration": float(probe.stdout.strip())}
