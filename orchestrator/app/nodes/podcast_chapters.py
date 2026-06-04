@@ -11,9 +11,18 @@ logger = get_logger("podcast_chapters")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
+DEFAULT_PROMPT = (
+    "You are a podcast editor. Given the transcript below, identify 4-8 major chapters "
+    "covering distinct topics. For each chapter return:\n"
+    "- title: short punchy chapter title (max 6 words)\n"
+    "- subtitle: one sentence describing what this chapter covers\n"
+    "- start_seconds: float\n"
+    "- end_seconds: float\n\n"
+    "Return ONLY a raw JSON array. No markdown, no backticks, no explanation."
+)
+
 
 async def get_video_duration(file_path: str) -> float:
-    """Get video duration using ffprobe via ffmpeg service."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -32,24 +41,16 @@ async def podcast_chapters_node(state: PodcastState) -> dict:
     episode_id = state["episode_id"]
     logger.info(f"[{episode_id[:8]}] Starting podcast_chapters")
 
-    # Get actual video duration to clamp timestamps
     duration = await get_video_duration(state["file_path"])
     logger.info(f"[{episode_id[:8]}] Video duration: {duration:.1f}s")
 
-    word_count = len(state.get("words") or [])
-    avg_words_per_sec = word_count / duration if duration > 0 else 3
+    # Use human-edited prompt if provided, else default
+    base_prompt = state.get("chapters_prompt") or DEFAULT_PROMPT
 
     prompt = (
-        f"You are a podcast editor. The video is exactly {duration:.0f} seconds long.\n"
-        "Given the transcript below, identify 4-8 major chapters covering distinct topics.\n"
-        "For each chapter return:\n"
-        "- title: short punchy chapter title (max 6 words)\n"
-        "- subtitle: one sentence describing what this chapter covers\n"
-        f"- start_seconds: float between 0 and {duration:.0f}\n"
-        f"- end_seconds: float between 0 and {duration:.0f}\n\n"
-        "IMPORTANT: All timestamps must be within the video duration. "
-        f"The last chapter must end at or before {duration:.0f} seconds.\n\n"
-        "Return ONLY a raw JSON array. No markdown, no backticks, no explanation.\n\n"
+        f"{base_prompt}\n\n"
+        f"The video is exactly {duration:.0f} seconds long. "
+        f"All timestamps must be between 0 and {duration:.0f}.\n\n"
         f"TRANSCRIPT:\n{state['transcript_text']}"
     )
 
@@ -75,12 +76,10 @@ async def podcast_chapters_node(state: PodcastState) -> dict:
 
     chapters = json.loads(raw)
 
-    # Clamp all timestamps to actual video duration
     for c in chapters:
         c["start_seconds"] = min(float(c.get("start_seconds", 0)), duration)
         c["end_seconds"] = min(float(c.get("end_seconds", 0)), duration)
 
-    # Drop invalid chapters
     chapters = [c for c in chapters if c["end_seconds"] > c["start_seconds"] + 5]
 
     write_context(episode_id, "podcast_chapters", {

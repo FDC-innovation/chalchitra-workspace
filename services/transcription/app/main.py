@@ -11,7 +11,7 @@ import whisper
 app = FastAPI()
 
 print("Loading Whisper model...", flush=True)
-model = whisper.load_model("base")
+model = whisper.load_model("small")
 print("Whisper model loaded.", flush=True)
 
 

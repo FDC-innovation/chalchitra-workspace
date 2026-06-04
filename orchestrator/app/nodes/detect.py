@@ -15,6 +15,10 @@ async def detect_node(state: ChalchitraState) -> dict:
                 "transcript": state["transcript_text"],
                 "srt": state["srt"],
             }
+            # Use human-edited prompt if provided
+            if state.get("detect_prompt"):
+                payload["system_prompt"] = state["detect_prompt"]
+
             response = await client.post("http://detect:8003/detect", json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()

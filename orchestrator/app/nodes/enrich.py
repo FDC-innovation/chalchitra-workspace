@@ -14,6 +14,10 @@ async def enrich_node(state: ChalchitraState) -> dict:
                 "episode_id": state["episode_id"],
                 "transcript": state["transcript_text"],
             }
+            # Use human-edited prompt if provided
+            if state.get("enrich_prompt"):
+                payload["system_prompt"] = state["enrich_prompt"]
+
             response = await client.post("http://enrich:8002/enrich", json=payload)
             response.raise_for_status()
             data = response.json()

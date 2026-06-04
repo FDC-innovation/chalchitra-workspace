@@ -10,12 +10,14 @@ router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".wav", ".m4a", ".ogg", ".webm", ".mkv", ".mov"}
 ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://orchestrator:8007/pipeline/start")
+PODCAST_URL = os.environ.get("PODCAST_URL", "http://orchestrator:8007/podcast/start")
 
 
 @router.post("/")
 async def upload_media(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    pipeline: str = "clips",
     session: Session = Depends(get_session),
 ):
     create_db()
@@ -39,7 +41,8 @@ async def upload_media(
     session.commit()
 
     logger.info(f"[upload] episode={episode_id} → triggering orchestrator at {ORCHESTRATOR_URL}")
-    background_tasks.add_task(trigger_pipeline, episode_id, dest_path)
+    url = PODCAST_URL if pipeline == "podcast" else ORCHESTRATOR_URL
+    background_tasks.add_task(trigger_pipeline, episode_id, dest_path, url)
 
     return {
         "episode_id": episode_id,
@@ -48,12 +51,12 @@ async def upload_media(
     }
 
 
-async def trigger_pipeline(episode_id: str, file_path: str):
+async def trigger_pipeline(episode_id: str, file_path: str, url: str = ORCHESTRATOR_URL):
     payload = {"episode_id": episode_id, "file_path": file_path, "transcription_engine": "whisper"}
     logger.info(f"[orchestrator] POST {ORCHESTRATOR_URL} payload={payload}")
     try:
         async with httpx.AsyncClient(timeout=600) as client:
-            r = await client.post(ORCHESTRATOR_URL, json=payload)
+            r = await client.post(url, json=payload)
             r.raise_for_status()
             logger.info(f"[orchestrator] {r.status_code}: {r.text[:300]}")
     except httpx.HTTPStatusError as e:
