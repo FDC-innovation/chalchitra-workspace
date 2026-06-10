@@ -18,7 +18,7 @@ async def podcast_renderer_node(state: PodcastState) -> dict:
     rendered_chapters = []
     failed_chapters = []
 
-    async with httpx.AsyncClient(timeout=900) as client:
+    async with httpx.AsyncClient(timeout=36000) as client:
         # ── Step 1: render each chapter (card + captions) ──────────────────
         for clip in chapter_clips:
             try:

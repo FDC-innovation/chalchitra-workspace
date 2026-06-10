@@ -52,7 +52,7 @@ async def trigger_pipeline(episode_id: str, file_path: str):
     payload = {"episode_id": episode_id, "file_path": file_path, "transcription_engine": "whisper"}
     logger.info(f"[orchestrator] POST {ORCHESTRATOR_URL} payload={payload}")
     try:
-        async with httpx.AsyncClient(timeout=600) as client:
+        async with httpx.AsyncClient(timeout=36000) as client:
             r = await client.post(ORCHESTRATOR_URL, json=payload)
             r.raise_for_status()
             logger.info(f"[orchestrator] {r.status_code}: {r.text[:300]}")

@@ -41,7 +41,7 @@ async def podcast_cut_node(state: PodcastState) -> dict:
                         }],
                         "clip_index": i,
                     },
-                    timeout=300,
+                    timeout=36000,
                 )
 
             if response.status_code == 200:

@@ -27,7 +27,7 @@ async def renderer_node(state: ChalchitraState) -> dict:
                         "channel_name": "Chalchitra",
                         "cta_text": "Follow for more",
                     },
-                    timeout=600,
+                    timeout=36000,
                 )
                 response.raise_for_status()
                 rendered_clips.append(response.json())

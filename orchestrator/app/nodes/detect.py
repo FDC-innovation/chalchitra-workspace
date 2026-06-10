@@ -15,7 +15,7 @@ async def detect_node(state: ChalchitraState) -> dict:
                 "transcript": state["transcript_text"],
                 "srt": state["srt"],
             }
-            response = await client.post("http://detect:8003/detect", json=payload, timeout=60)
+            response = await client.post("http://detect:8003/detect", json=payload, timeout=36000)
             response.raise_for_status()
             data = response.json()
 

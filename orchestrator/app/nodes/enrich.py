@@ -9,7 +9,7 @@ logger = get_logger("enrich")
 async def enrich_node(state: ChalchitraState) -> dict:
     logger.info(f"[{state['episode_id'][:8]}] Starting enrich")
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=36000) as client:
             payload = {
                 "episode_id": state["episode_id"],
                 "transcript": state["transcript_text"],

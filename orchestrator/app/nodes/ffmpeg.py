@@ -20,7 +20,7 @@ async def ffmpeg_node(state: ChalchitraState) -> dict:
                         "clips": [clip],
                         "clip_index": i,
                     },
-                    timeout=300,
+                    timeout=36000,
                 )
                 if response.status_code == 200:
                     data = response.json()
