@@ -8,7 +8,7 @@ from app.podcast_state import PodcastState
 
 logger = get_logger("podcast_chapters")
 
-OLLAMA_URL = "http://172.19.0.1:11434/api/generate"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://172.19.0.1:11434") + "/api/generate"
 
 
 async def get_video_duration(file_path: str) -> float:

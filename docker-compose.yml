@@ -32,6 +32,7 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL:-http://172.19.0.1:11434}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/')"]
       interval: 10s
@@ -52,6 +53,7 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL:-http://172.19.0.1:11434}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/')"]
       interval: 10s
@@ -164,6 +166,7 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL:-http://172.19.0.1:11434}
     volumes:
       - ./shared/volumes:/app/shared/volumes
     networks:
