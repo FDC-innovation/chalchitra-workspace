@@ -157,6 +157,56 @@ services:
       - chalchitra
     restart: unless-stopped
 
+  script_writer:
+    build:
+      context: ./services/script_writer
+      dockerfile: Dockerfile
+    ports:
+      - "8013:8013"
+    networks:
+      - chalchitra
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    restart: unless-stopped
+
+  tts:
+    build:
+      context: ./services/tts
+      dockerfile: Dockerfile
+    ports:
+      - "8014:8014"
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
+    networks:
+      - chalchitra
+    restart: unless-stopped
+
+  broll:
+    build:
+      context: ./services/broll
+      dockerfile: Dockerfile
+    ports:
+      - "8016:8016"
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
+    networks:
+      - chalchitra
+    environment:
+      - PEXELS_API_KEY=${PEXELS_API_KEY}
+    restart: unless-stopped
+
+  explainer_renderer:
+    build:
+      context: ./services/explainer_renderer
+      dockerfile: Dockerfile
+    ports:
+      - "8017:8017"
+    volumes:
+      - ./shared/volumes:/app/shared/volumes
+    networks:
+      - chalchitra
+    restart: unless-stopped
+
   orchestrator:
     build: ./orchestrator
     ports:
@@ -177,6 +227,10 @@ services:
       - silence_detector
       - auto_editor
       - podcast_renderer
+      - script_writer
+      - tts
+      - broll
+      - explainer_renderer
 
   gateway:
     build: ./gateway

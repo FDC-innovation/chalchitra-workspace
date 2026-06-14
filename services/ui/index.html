@@ -1207,7 +1207,10 @@
         fd.append("file", f);
 
         try {
-          const r = await fetch("http://localhost:8000/api/upload/?pipeline=" + activePipeline, { method: "POST", body: fd });
+          const r = await fetch("http://localhost:8000/api/upload/?pipeline=" + activePipeline, {
+            method: "POST",
+            body: fd,
+          });
           const data = await r.json();
           const epId = data.episode_id;
 
@@ -1559,7 +1562,8 @@
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             log(type + " prompt error " + res.status + ": " + (err.detail || "unknown"), "err");
-            setActionLoading(false); return;
+            setActionLoading(false);
+            return;
           }
           log(`${type} prompt approved ✓`, "ok");
           updateEpStatus(currentEpisodeId, "running");
