@@ -14,6 +14,7 @@ async def detect_node(state: ChalchitraState) -> dict:
                 "episode_id": state["episode_id"],
                 "transcript": state["transcript_text"],
                 "srt": state["srt"],
+                "system_prompt": state.get("detect_prompt") or state.get("custom_prompt"),
             }
             response = await client.post("http://detect:8003/detect", json=payload, timeout=36000)
             response.raise_for_status()

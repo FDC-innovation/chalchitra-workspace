@@ -8,7 +8,7 @@ logger = get_logger("renderer")
 
 async def renderer_node(state: ChalchitraState) -> dict:
     logger.info(f"[{state['episode_id'][:8]}] Starting renderer")
-    clips_to_render = state.get("cut_clips") or []
+    clips_to_render = state.get("approved_clips") or state.get("cut_clips") or []
     rendered_clips = []
     failed_clips = []
 

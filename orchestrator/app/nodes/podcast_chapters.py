@@ -26,6 +26,18 @@ async def get_video_duration(file_path: str) -> float:
     return 99999
 
 
+def parse_chapter_count(text: str):
+    """Extract min/max chapter count from text like '2-3 chapters' or '4 chapters'."""
+    m = re.search(r'(\d+)\s*[-–to]+\s*(\d+)\s*chapters?', text, re.I)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    m = re.search(r'(\d+)\s*chapters?', text, re.I)
+    if m:
+        v = int(m.group(1))
+        return v, v
+    return None, None
+
+
 async def podcast_chapters_node(state: PodcastState) -> dict:
     episode_id = state["episode_id"]
     logger.info(f"[{episode_id[:8]}] Starting podcast_chapters")
@@ -39,16 +51,26 @@ async def podcast_chapters_node(state: PodcastState) -> dict:
         logger.info(f"[{episode_id[:8]}] Truncating transcript from {len(words)} to 3000 words")
         transcript = " ".join(words[:3000])
 
+    custom_prompt = state.get("custom_prompt") or ""
+    min_ch, max_ch = parse_chapter_count(custom_prompt) if custom_prompt else (None, None)
+    count_range = f"{min_ch}-{max_ch}" if min_ch and max_ch else "4-8"
+    count_hint = f"\nCRITICAL: Return EXACTLY {min_ch} to {max_ch} chapters — no more, no fewer.\n" if min_ch else ""
+    user_instruction = f"\nUser instruction: {custom_prompt}\n{count_hint}" if custom_prompt else ""
+
     prompt = (
         f"You are a podcast editor. The video is exactly {duration:.0f} seconds long.\n"
-        "Given the transcript below, identify 4-8 major chapters covering distinct topics.\n"
+        f"Given the transcript below, identify {count_range} major chapters covering distinct topics.{user_instruction}\n"
         "For each chapter return:\n"
         "- title: short punchy chapter title (max 6 words)\n"
         "- subtitle: one sentence describing what this chapter covers\n"
-        f"- start_seconds: float between 0 and {duration:.0f}\n"
-        f"- end_seconds: float between 0 and {duration:.0f}\n\n"
-        "IMPORTANT: All timestamps must be within the video duration. "
-        f"The last chapter must end at or before {duration:.0f} seconds.\n\n"
+        f"- start_seconds: use REAL timestamps from the transcript — NOT evenly spaced\n"
+        f"- end_seconds: must equal the start_seconds of the NEXT chapter\n\n"
+        "CRITICAL RULES:\n"
+        "- Chapters must be CONTIGUOUS — no gaps between them\n"
+        "- First chapter start_seconds = 0\n"
+        f"- Last chapter end_seconds = {duration:.0f}\n"
+        "- Base timestamps on when topics actually shift in the transcript\n"
+        "- Do NOT invent evenly-spaced timestamps like 0,10,20,30\n\n"
         "Return ONLY a raw JSON array. No markdown, no backticks, no explanation.\n\n"
         f"TRANSCRIPT:\n{transcript}"
     )
@@ -70,11 +92,26 @@ async def podcast_chapters_node(state: PodcastState) -> dict:
 
     chapters = json.loads(raw)
 
+    # Sort and force contiguous — end of each chapter = start of next
+    chapters.sort(key=lambda c: float(c.get("start_seconds", 0)))
+    for i in range(len(chapters) - 1):
+        chapters[i]["end_seconds"] = chapters[i + 1]["start_seconds"]
+    if chapters:
+        chapters[0]["start_seconds"] = 0.0
+        chapters[-1]["end_seconds"] = duration
+
     for c in chapters:
-        c["start_seconds"] = min(float(c.get("start_seconds", 0)), duration)
-        c["end_seconds"] = min(float(c.get("end_seconds", 0)), duration)
+        c["start_seconds"] = round(min(float(c.get("start_seconds", 0)), duration), 2)
+        c["end_seconds"] = round(min(float(c.get("end_seconds", 0)), duration), 2)
 
     chapters = [c for c in chapters if c["end_seconds"] > c["start_seconds"] + 5]
+
+    # Enforce max chapter count from user prompt
+    if max_ch and len(chapters) > max_ch:
+        chapters = chapters[:max_ch]
+        # Re-fix last chapter end after truncation
+        if chapters:
+            chapters[-1]["end_seconds"] = duration
 
     write_context(episode_id, "podcast_chapters", {
         "chapters_count": len(chapters),

@@ -1,12 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from groq import Groq
 import os
 import json
+import httpx
 
 app = FastAPI()
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://172.19.0.1:11434") + "/api/generate"
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:latest")
 
 
 class EnrichRequest(BaseModel):
@@ -25,13 +27,13 @@ def enrich(req: EnrichRequest):
     if not req.transcript.strip():
         raise HTTPException(400, "Empty transcript")
 
-    system = "You are a viral social media content strategist. Return ONLY valid JSON, no markdown, no explanation."
-    prompt = req.system_prompt or f"""Given this transcript, extract metadata to help create viral short-form clips.
+    custom_context = f"\nUser instruction: {req.system_prompt}\n" if req.system_prompt else ""
+    prompt = f"""You are a social media content strategist. Given this transcript, extract metadata to help create viral short-form clips.{custom_context}
 
 Transcript:
 {req.transcript[:4000]}
 
-Return ONLY valid JSON:
+Return ONLY valid JSON, no markdown, no explanation:
 {{
   "title": "catchy overall title for the content",
   "show_notes": "2-3 sentence summary",
@@ -39,17 +41,17 @@ Return ONLY valid JSON:
   "chapters": [{{"title": "chapter title", "start_time": "0:00", "summary": "brief summary"}}]
 }}"""
 
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3,
-        max_tokens=1000
-    )
+    try:
+        response = httpx.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            timeout=120,
+        )
+        response.raise_for_status()
+        text = response.json()["response"].strip()
+    except Exception as e:
+        raise HTTPException(500, f"Ollama request failed: {e}")
 
-    text = response.choices[0].message.content.strip()
     text = text.replace('```json', '').replace('```', '').strip()
     try:
         data = json.loads(text)

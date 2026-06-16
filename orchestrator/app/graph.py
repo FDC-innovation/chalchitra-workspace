@@ -22,4 +22,4 @@ def build_graph(checkpointer):
     builder.add_edge("ffmpeg", "filter_clips")
     builder.add_edge("filter_clips", "renderer")
     builder.add_edge("renderer", END)
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(checkpointer=checkpointer, interrupt_before=["enrich"])

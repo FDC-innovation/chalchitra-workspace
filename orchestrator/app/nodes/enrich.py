@@ -13,6 +13,7 @@ async def enrich_node(state: ChalchitraState) -> dict:
             payload = {
                 "episode_id": state["episode_id"],
                 "transcript": state["transcript_text"],
+                "system_prompt": state.get("enrich_prompt") or state.get("custom_prompt"),
             }
             response = await client.post("http://enrich:8002/enrich", json=payload)
             response.raise_for_status()
