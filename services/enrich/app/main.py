@@ -45,7 +45,7 @@ Return ONLY valid JSON, no markdown, no explanation:
         response = httpx.post(
             OLLAMA_URL,
             json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            timeout=120,
+            timeout=36000,
         )
         response.raise_for_status()
         text = response.json()["response"].strip()
