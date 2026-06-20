@@ -8,7 +8,7 @@ logger = get_logger("renderer")
 
 async def renderer_node(state: ChalchitraState) -> dict:
     logger.info(f"[{state['episode_id'][:8]}] Starting renderer")
-    clips_to_render = state.get("cut_clips") or []
+    clips_to_render = state.get("approved_clips") or state.get("cut_clips") or []
     rendered_clips = []
     failed_clips = []
 
@@ -27,7 +27,7 @@ async def renderer_node(state: ChalchitraState) -> dict:
                         "channel_name": "Chalchitra",
                         "cta_text": "Follow for more",
                     },
-                    timeout=600,
+                    timeout=36000,
                 )
                 response.raise_for_status()
                 rendered_clips.append(response.json())

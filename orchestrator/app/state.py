@@ -23,4 +23,5 @@ class ChalchitraState(TypedDict):
     pipeline_status: Optional[str]
     enrich_prompt: Optional[str]
     detect_prompt: Optional[str]
+    custom_prompt: Optional[str]
     error: Optional[str]

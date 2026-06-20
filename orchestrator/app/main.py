@@ -49,6 +49,12 @@ class RejectRequest(BaseModel):
     feedback: Optional[str] = None
 
 
+class ResumeTranscriptRequest(BaseModel):
+    episode_id: str
+    custom_prompt: Optional[str] = None
+    corrected_transcript: Optional[str] = None
+
+
 class PodcastApproveRequest(BaseModel):
     episode_id: str
     updates: dict
@@ -110,6 +116,31 @@ async def approve_pipeline(request: ApproveRequest, background_tasks: Background
     return {"status": "rendering_started"}
 
 
+@app.post("/pipeline/resume_transcript")
+async def resume_transcript(request: ResumeTranscriptRequest, background_tasks: BackgroundTasks):
+    config = {"configurable": {"thread_id": request.episode_id}}
+    snapshot = await app.state.graph.aget_state(config)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    if not snapshot.next:
+        raise HTTPException(status_code=400, detail="Pipeline is not paused.")
+
+    updates: dict = {}
+    if request.custom_prompt:
+        updates["custom_prompt"] = request.custom_prompt
+    if request.corrected_transcript:
+        updates["transcript_text"] = request.corrected_transcript
+
+    if updates:
+        await app.state.graph.aupdate_state(config, updates)
+
+    async def _run():
+        await app.state.graph.ainvoke(None, config=config)
+
+    background_tasks.add_task(_run)
+    return {"status": "pipeline_resumed"}
+
+
 @app.post("/pipeline/reject")
 async def reject_pipeline(request: RejectRequest):
     config = {"configurable": {"thread_id": request.episode_id}}
@@ -151,6 +182,31 @@ async def get_podcast_status(episode_id: str):
         "next": list(snapshot.next),
         "at_interrupt": len(snapshot.next) > 0
     }
+
+
+@app.post("/podcast/resume_transcript")
+async def resume_podcast_transcript(request: ResumeTranscriptRequest, background_tasks: BackgroundTasks):
+    config = _podcast_config(request.episode_id)
+    snapshot = await app.state.podcast_graph.aget_state(config)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Podcast pipeline not found")
+    if not snapshot.next:
+        raise HTTPException(status_code=400, detail="Podcast pipeline is not paused.")
+
+    updates: dict = {}
+    if request.custom_prompt:
+        updates["custom_prompt"] = request.custom_prompt
+    if request.corrected_transcript:
+        updates["transcript_text"] = request.corrected_transcript
+
+    if updates:
+        await app.state.podcast_graph.aupdate_state(config, updates)
+
+    async def _run():
+        await app.state.podcast_graph.ainvoke(None, config=config)
+
+    background_tasks.add_task(_run)
+    return {"status": "podcast_pipeline_resumed"}
 
 
 @app.post("/podcast/approve")

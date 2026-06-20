@@ -3,1168 +3,2938 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chalchitra — Pipeline Console</title>
+    <title>Chalchitra — AI Podcast Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap");
-
       :root {
-        --bg: #0a0a0a;
-        --surface: #111111;
-        --border: #1e1e1e;
-        --border-bright: #2a2a2a;
-        --text: #e8e8e8;
-        --muted: #555;
-        --accent: #f5c518;
-        --accent-dim: rgba(245, 197, 24, 0.1);
-        --green: #22c55e;
-        --green-dim: rgba(34, 197, 94, 0.1);
-        --red: #ef4444;
-        --red-dim: rgba(239, 68, 68, 0.1);
-        --blue: #60a5fa;
-        --blue-dim: rgba(96, 165, 250, 0.08);
+        --bg:        #080810;
+        --bg2:       #0e0e1a;
+        --bg3:       #13131f;
+        --border:    rgba(255,255,255,0.07);
+        --border2:   rgba(255,255,255,0.12);
+        --text:      #e8e8f0;
+        --muted:     #5a5a7a;
+        --cyan:      #00d4ff;
+        --cyan-dim:  rgba(0,212,255,0.10);
+        --cyan-glow: rgba(0,212,255,0.25);
+        --purple:    #a855f7;
+        --purple-dim:rgba(168,85,247,0.10);
+        --green:     #22c55e;
+        --green-dim: rgba(34,197,94,0.10);
+        --red:       #ef4444;
+        --red-dim:   rgba(239,68,68,0.10);
+        --amber:     #f59e0b;
       }
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
         background: var(--bg);
         color: var(--text);
-        font-family: "DM Mono", monospace;
-        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
         min-height: 100vh;
-        overflow-x: hidden;
+        overflow: hidden;
       }
 
-      /* HEADER */
-      header {
+      /* ── APP SHELL ─────────────────────────────────────────────── */
+      .app {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        grid-template-rows: 56px 1fr;
+        height: 100vh;
+      }
+
+      /* ── TOPBAR ────────────────────────────────────────────────── */
+      .topbar {
+        grid-column: 1 / -1;
+        background: var(--bg2);
         border-bottom: 1px solid var(--border);
-        padding: 18px 32px;
         display: flex;
         align-items: center;
+        padding: 0 24px;
         gap: 16px;
-        position: sticky;
-        top: 0;
-        background: var(--bg);
-        z-index: 100;
       }
 
       .logo {
-        font-family: "Syne", sans-serif;
-        font-weight: 800;
-        font-size: 18px;
+        font-size: 20px;
+        font-weight: 700;
         letter-spacing: -0.5px;
-        color: var(--accent);
+        background: linear-gradient(90deg, var(--cyan), var(--purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
-      .logo span {
-        color: var(--text);
+      .logo-icon {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
       }
 
-      .badge {
-        font-size: 10px;
-        padding: 2px 8px;
-        border: 1px solid var(--border-bright);
-        border-radius: 2px;
+      .logo-icon svg { width: 16px; height: 16px; fill: white; }
+
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .project-label {
+        font-size: 12px;
         color: var(--muted);
-        letter-spacing: 1px;
-        text-transform: uppercase;
+        font-family: 'JetBrains Mono', monospace;
       }
+
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid var(--border2);
+        color: var(--muted);
+      }
+
+      .status-pill.processing { color: var(--cyan); border-color: var(--cyan-dim); }
+      .status-pill.complete   { color: var(--green); border-color: var(--green-dim); }
+      .status-pill.idle       { color: var(--muted); }
 
       .status-dot {
-        width: 7px;
-        height: 7px;
+        width: 6px; height: 6px;
         border-radius: 50%;
-        background: var(--green);
-        box-shadow: 0 0 8px var(--green);
-        animation: pulse 2s infinite;
-        margin-left: auto;
+        background: currentColor;
       }
+
+      .status-dot.pulse { animation: pulse 1.5s ease-in-out infinite; }
 
       @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.4;
-        }
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
       }
 
-      .status-label {
-        color: var(--muted);
-        font-size: 11px;
-      }
-
-      /* LAYOUT */
-      .layout {
-        display: grid;
-        grid-template-columns: 340px 1fr;
-        height: calc(100vh - 57px);
-      }
-
-      /* SIDEBAR */
+      /* ── SIDEBAR ───────────────────────────────────────────────── */
       .sidebar {
+        background: var(--bg2);
         border-right: 1px solid var(--border);
-        overflow-y: auto;
         display: flex;
         flex-direction: column;
+        padding: 20px 12px;
+        overflow-y: auto;
       }
 
-      .sidebar-section {
-        border-bottom: 1px solid var(--border);
-        padding: 20px;
-      }
-
-      .section-label {
+      .sidebar-label {
         font-size: 10px;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         color: var(--muted);
-        margin-bottom: 14px;
+        padding: 0 8px;
+        margin-bottom: 8px;
+        margin-top: 20px;
       }
 
-      /* UPLOAD ZONE */
-      .upload-zone {
-        border: 1px dashed var(--border-bright);
-        border-radius: 4px;
-        padding: 24px;
+      .sidebar-label:first-child { margin-top: 0; }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.15s;
+        font-size: 13px;
+        font-weight: 500;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+      }
+
+      .nav-item:hover { background: var(--bg3); color: var(--text); }
+      .nav-item.active {
+        background: var(--cyan-dim);
+        color: var(--cyan);
+        border: 1px solid rgba(0,212,255,0.2);
+      }
+
+      .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+      .sidebar-spacer { flex: 1; }
+
+      .api-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: var(--bg3);
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .api-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--muted);
+        flex-shrink: 0;
+      }
+
+      .api-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+      .api-dot.offline { background: var(--red); }
+
+      /* ── MAIN CONTENT ──────────────────────────────────────────── */
+      .main {
+        overflow: hidden;
+        position: relative;
+      }
+
+      .screen {
+        position: absolute;
+        inset: 0;
+        display: none;
+        overflow-y: auto;
+      }
+
+      .screen.active { display: flex; flex-direction: column; }
+
+      /* ══════════════════════════════════════════════════════════════
+         SCREEN 1 — UPLOAD
+      ══════════════════════════════════════════════════════════════ */
+      .upload-screen {
+        align-items: center;
+        justify-content: flex-start;
+        padding: 60px 40px 40px;
+      }
+
+      .upload-hero {
+        text-align: center;
+        max-width: 620px;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      .upload-hero h1 {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -1px;
+        margin-bottom: 12px;
+        line-height: 1.2;
+      }
+
+      .upload-hero p {
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 36px;
+      }
+
+      .drop-zone {
+        border: 2px dashed var(--border2);
+        border-radius: 16px;
+        padding: 56px 40px;
         text-align: center;
         cursor: pointer;
         transition: all 0.2s;
         position: relative;
+        background: var(--bg2);
+        margin-bottom: 20px;
       }
 
-      .upload-zone:hover,
-      .upload-zone.drag {
-        border-color: var(--accent);
-        background: var(--accent-dim);
+      .drop-zone:hover, .drop-zone.drag {
+        border-color: var(--cyan);
+        background: var(--cyan-dim);
+        box-shadow: 0 0 40px var(--cyan-glow);
       }
 
-      .upload-zone input {
+      .drop-zone input[type="file"] {
         position: absolute;
         inset: 0;
         opacity: 0;
         cursor: pointer;
         width: 100%;
+        height: 100%;
       }
 
-      .upload-icon {
-        font-size: 24px;
-        margin-bottom: 8px;
-        display: block;
-      }
-
-      .upload-text {
-        color: var(--muted);
-        line-height: 1.6;
-      }
-      .upload-text strong {
-        color: var(--text);
-        display: block;
-        margin-bottom: 4px;
-      }
-
-      /* BUTTONS */
-      .btn {
-        width: 100%;
-        padding: 10px 16px;
-        border: none;
-        border-radius: 3px;
-        font-family: "DM Mono", monospace;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.15s;
-        letter-spacing: 0.5px;
-        margin-top: 10px;
-      }
-
-      .btn-primary {
-        background: var(--accent);
-        color: #000;
-        font-weight: 500;
-      }
-
-      .btn-primary:hover {
-        background: #ffd700;
-      }
-      .btn-primary:disabled {
-        background: #333;
-        color: var(--muted);
-        cursor: not-allowed;
-      }
-
-      .btn-ghost {
-        background: transparent;
-        color: var(--text);
-        border: 1px solid var(--border-bright);
-      }
-
-      .btn-ghost:hover {
-        border-color: var(--text);
-      }
-
-      .btn-danger {
-        background: var(--red-dim);
-        color: var(--red);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-      }
-
-      .btn-danger:hover {
-        background: rgba(239, 68, 68, 0.2);
-      }
-
-      .btn-success {
-        background: var(--green-dim);
-        color: var(--green);
-        border: 1px solid rgba(34, 197, 94, 0.2);
-      }
-
-      .btn-success:hover {
-        background: rgba(34, 197, 94, 0.2);
-      }
-
-      /* EPISODE LIST */
-      .episode-item {
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 3px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        transition: all 0.15s;
-        position: relative;
-      }
-
-      .episode-item:hover {
-        border-color: var(--border-bright);
-      }
-      .episode-item.active {
-        border-color: var(--accent);
-        background: var(--accent-dim);
-      }
-
-      .ep-id {
-        font-size: 11px;
-        color: var(--muted);
-        font-family: "DM Mono", monospace;
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .ep-status {
-        display: inline-flex;
+      .drop-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: var(--bg3);
+        border: 1px solid var(--border2);
+        display: flex;
         align-items: center;
-        gap: 5px;
-        font-size: 10px;
-        padding: 2px 7px;
-        border-radius: 2px;
+        justify-content: center;
+        margin: 0 auto 20px;
       }
 
-      .ep-status.awaiting {
-        background: var(--accent-dim);
-        color: var(--accent);
-      }
-      .ep-status.completed {
-        background: var(--green-dim);
-        color: var(--green);
-      }
-      .ep-status.running {
-        background: var(--blue-dim);
-        color: var(--blue);
-      }
-      .ep-status.failed {
-        background: var(--red-dim);
-        color: var(--red);
+      .drop-icon svg { width: 28px; height: 28px; stroke: var(--muted); }
+
+      .drop-zone h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
       }
 
-      /* MAIN PANEL */
-      .main {
+      .drop-zone p {
+        color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        margin: 0;
+      }
+
+      .file-selected {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        background: var(--cyan-dim);
+        border: 1px solid rgba(0,212,255,0.25);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      .file-selected.show { display: flex; }
+
+      .file-selected svg { width: 16px; height: 16px; stroke: var(--cyan); flex-shrink: 0; }
+
+      .file-name { color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+      .btn-start {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+      }
+
+      .btn-start:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 30px var(--cyan-glow); }
+      .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+      .btn-start svg { width: 18px; height: 18px; }
+
+      .feature-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        max-width: 620px;
+        width: 100%;
+        margin: 32px auto 0;
+      }
+
+      .feature-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        transition: border-color 0.2s;
+      }
+
+      .feature-card:hover { border-color: var(--border2); }
+
+      .feature-card-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+      }
+
+      .feature-card-icon.cyan  { background: var(--cyan-dim); }
+      .feature-card-icon.purple { background: var(--purple-dim); }
+      .feature-card-icon.green { background: var(--green-dim); }
+
+      .feature-card-icon svg { width: 18px; height: 18px; }
+      .feature-card-icon.cyan svg  { stroke: var(--cyan); }
+      .feature-card-icon.purple svg { stroke: var(--purple); }
+      .feature-card-icon.green svg  { stroke: var(--green); }
+
+      .feature-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+      .feature-card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+      /* ══════════════════════════════════════════════════════════════
+         SCREEN 2 — PIPELINE
+      ══════════════════════════════════════════════════════════════ */
+      .pipeline-screen {
+        flex-direction: row !important;
+      }
+
+      /* Flow Progression column */
+      .flow-col {
+        width: 220px;
+        flex-shrink: 0;
+        border-right: 1px solid var(--border);
+        padding: 24px 20px;
         overflow-y: auto;
+      }
+
+      .flow-col h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 24px;
+        letter-spacing: 0.5px;
+      }
+
+      .stepper {
+        position: relative;
         display: flex;
         flex-direction: column;
+        gap: 0;
       }
 
-      /* PIPELINE VIZ */
-      .pipeline-bar {
-        padding: 16px 28px;
+      .step {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        position: relative;
+        padding-bottom: 28px;
+      }
+
+      .step:last-child { padding-bottom: 0; }
+
+      .step-line {
+        position: absolute;
+        left: 13px;
+        top: 28px;
+        bottom: 0;
+        width: 2px;
+        background: var(--border2);
+        transition: background 0.4s;
+      }
+
+      .step:last-child .step-line { display: none; }
+      .step.done .step-line { background: var(--cyan); }
+
+      .step-node {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: var(--bg2);
+        transition: all 0.3s;
+        position: relative;
+        z-index: 1;
+      }
+
+      .step-node svg { width: 12px; height: 12px; stroke: var(--muted); }
+
+      .step.done .step-node {
+        background: var(--cyan);
+        border-color: var(--cyan);
+        box-shadow: 0 0 12px var(--cyan-glow);
+      }
+
+      .step.done .step-node svg { stroke: var(--bg); }
+
+      .step.active .step-node {
+        border-color: var(--cyan);
+        background: var(--cyan-dim);
+        animation: stepPulse 1.5s ease-in-out infinite;
+      }
+
+      .step.active .step-node svg { stroke: var(--cyan); }
+
+      @keyframes stepPulse {
+        0%, 100% { box-shadow: 0 0 0 0 var(--cyan-glow); }
+        50% { box-shadow: 0 0 0 6px transparent; }
+      }
+
+      .step-info { padding-top: 3px; }
+
+      .step-name {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--muted);
+        transition: color 0.3s;
+      }
+
+      .step.done .step-name  { color: var(--cyan); }
+      .step.active .step-name { color: var(--cyan); }
+
+      .step-status {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .step.active .step-status { color: var(--amber); }
+
+      /* Terminal log column */
+      .terminal-col {
+        flex: 1;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .terminal-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
         border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        gap: 0;
-        overflow-x: auto;
-      }
-
-      .pipe-step {
-        display: flex;
-        align-items: center;
-        gap: 0;
+        background: var(--bg3);
         flex-shrink: 0;
       }
 
-      .pipe-node {
-        padding: 5px 12px;
-        border: 1px solid var(--border-bright);
-        border-radius: 2px;
+      .terminal-dots { display: flex; gap: 5px; }
+      .terminal-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+      }
+      .terminal-dot:nth-child(1) { background: #ff5f57; }
+      .terminal-dot:nth-child(2) { background: #ffbd2e; }
+      .terminal-dot:nth-child(3) { background: #28c840; }
+
+      .terminal-title {
+        font-family: 'JetBrains Mono', monospace;
         font-size: 11px;
         color: var(--muted);
-        white-space: nowrap;
-        transition: all 0.3s;
-      }
-
-      .pipe-node.done {
-        border-color: var(--green);
-        color: var(--green);
-        background: var(--green-dim);
-      }
-      .pipe-node.active {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: var(--accent-dim);
-        animation: glow 1.5s infinite;
-      }
-      .pipe-node.pending {
-        color: var(--muted);
-      }
-      .pipe-node.paused {
-        border-color: var(--blue);
-        color: var(--blue);
-        background: var(--blue-dim);
-      }
-
-      @keyframes glow {
-        0%,
-        100% {
-          box-shadow: 0 0 0 rgba(245, 197, 24, 0);
-        }
-        50% {
-          box-shadow: 0 0 12px rgba(245, 197, 24, 0.3);
-        }
-      }
-
-      .pipe-arrow {
-        width: 24px;
-        height: 1px;
-        background: var(--border-bright);
-        position: relative;
-      }
-
-      .pipe-arrow::after {
-        content: "▶";
-        position: absolute;
-        right: -5px;
-        top: -5px;
-        font-size: 9px;
-        color: var(--border-bright);
-      }
-
-      /* CONTENT AREA */
-      .content {
-        padding: 28px;
         flex: 1;
       }
 
-      .panel-title {
-        font-family: "Syne", sans-serif;
+      .live-badge {
+        font-size: 10px;
         font-weight: 700;
-        font-size: 16px;
+        letter-spacing: 1px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--red-dim);
+        color: var(--red);
+        border: 1px solid rgba(239,68,68,0.3);
+        animation: livePulse 2s ease-in-out infinite;
+      }
+
+      @keyframes livePulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+
+      .terminal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        line-height: 1.8;
+        background: var(--bg);
+      }
+
+      .log-line { display: flex; gap: 8px; }
+      .log-tag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+        margin-top: 2px;
+        min-width: 42px;
+      }
+      .log-tag.init   { color: var(--muted); }
+      .log-tag.ok     { color: var(--green); }
+      .log-tag.info   { color: var(--purple); }
+      .log-tag.ai     { color: var(--cyan); }
+      .log-tag.warn   { color: var(--amber); }
+      .log-tag.err    { color: var(--red); }
+      .log-msg        { color: var(--text); opacity: 0.85; word-break: break-all; }
+
+      /* Segments column */
+      .segments-col {
+        width: 240px;
+        flex-shrink: 0;
+        padding: 20px 16px;
+        overflow-y: auto;
+      }
+
+      .segments-col h3 {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+
+      .segment-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
+        transition: border-color 0.2s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .segment-card:hover { border-color: var(--border2); }
+
+      .segment-card.generating {
+        border-color: rgba(168,85,247,0.3);
+        background: var(--purple-dim);
+      }
+
+      .segment-card.generating::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        width: 60%;
+        background: linear-gradient(90deg, var(--purple), transparent);
+        animation: loadingBar 2s ease-in-out infinite;
+      }
+
+      @keyframes loadingBar {
+        0%   { width: 0%; opacity: 1; }
+        70%  { width: 80%; opacity: 1; }
+        100% { width: 100%; opacity: 0; }
+      }
+
+      .segment-ts {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        background: var(--cyan-dim);
+        color: var(--cyan);
+        padding: 2px 7px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+
+      .segment-title {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        margin-bottom: 4px;
+      }
+
+      .segment-subtitle {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      /* ══════════════════════════════════════════════════════════════
+         SCREEN 3 — OUTPUT
+      ══════════════════════════════════════════════════════════════ */
+      .output-screen {
+        flex-direction: column !important;
+        padding: 0;
+      }
+
+      .output-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 28px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .output-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .success-check {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--cyan-dim);
+        border: 2px solid var(--cyan);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .success-check svg { width: 18px; height: 18px; stroke: var(--cyan); }
+
+      .output-banner h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--cyan);
+        letter-spacing: -0.3px;
+      }
+
+      .output-meta {
+        font-size: 12px;
+        color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
+        margin-top: 2px;
+      }
+
+      .output-banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+      .btn-secondary {
+        padding: 9px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border2);
+        background: transparent;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+      }
+
+      .btn-secondary:hover { background: var(--bg3); border-color: var(--text); }
+      .btn-secondary svg { width: 14px; height: 14px; }
+
+      .btn-download {
+        padding: 9px 18px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+        text-decoration: none;
+      }
+
+      .btn-download:hover { opacity: 0.9; transform: translateY(-1px); }
+      .btn-download svg { width: 14px; height: 14px; }
+
+      .output-body {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      /* Video player */
+      .video-col {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border);
+        overflow: hidden;
+        background: #000;
+      }
+
+      .video-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        position: relative;
+        min-height: 0;
+      }
+
+      .video-wrapper video {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+      }
+
+      .video-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: var(--muted);
+        height: 100%;
+        width: 100%;
+        background: var(--bg);
+      }
+
+      .video-placeholder svg { width: 48px; height: 48px; opacity: 0.3; }
+
+      /* Chapters column */
+      .chapters-col {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .chapters-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .chapters-header h3 {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .chapters-count {
+        font-size: 12px;
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--cyan);
+      }
+
+      .chapters-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+      }
+
+      .chapter-item {
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-bottom: 6px;
+      }
+
+      .chapter-item:hover, .chapter-item.active {
+        background: var(--bg2);
+        border-color: var(--border);
+      }
+
+      .chapter-item.active { border-color: var(--cyan-dim); }
+
+      .chapter-num {
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .chapter-ts {
+        color: var(--cyan);
+        font-size: 10px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .chapter-title {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        margin-bottom: 3px;
+      }
+
+      .chapter-subtitle {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .live-logs-mini {
+        border-top: 1px solid var(--border);
+        padding: 10px 14px;
+        flex-shrink: 0;
+        background: var(--bg2);
+      }
+
+      .live-logs-mini-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .live-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      .live-logs-mini pre {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--green);
+        line-height: 1.5;
+        max-height: 60px;
+        overflow-y: auto;
+        opacity: 0.8;
+      }
+
+      /* ── ANIMATIONS ───────────────────────────────────────────── */
+
+      /* Log lines slide in */
+      @keyframes logSlideIn {
+        from { opacity: 0; transform: translateX(-12px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+
+      .log-line {
+        animation: logSlideIn 0.2s ease-out both;
+      }
+
+      /* Blinking cursor on last log line */
+      .log-line:last-child .log-msg::after {
+        content: '▌';
+        color: var(--cyan);
+        opacity: 1;
+        animation: blink 1s step-end infinite;
+        margin-left: 2px;
+      }
+
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0; }
+      }
+
+      /* Stepper active node — stronger glow pulse */
+      @keyframes stepPulse {
+        0%   { box-shadow: 0 0 0 0 var(--cyan-glow); border-color: var(--cyan); }
+        50%  { box-shadow: 0 0 0 8px transparent, 0 0 20px var(--cyan-glow); border-color: var(--cyan); }
+        100% { box-shadow: 0 0 0 0 var(--cyan-glow); border-color: var(--cyan); }
+      }
+
+      /* Stepper line fill animation */
+      .step.done .step-line {
+        background: linear-gradient(to bottom, var(--cyan), var(--cyan));
+        animation: lineFill 0.6s ease-out;
+      }
+
+      @keyframes lineFill {
+        from { background-size: 100% 0%; }
+        to   { background-size: 100% 100%; }
+      }
+
+      /* Stepper done node pop */
+      @keyframes nodePop {
+        0%   { transform: scale(0.6); }
+        60%  { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+
+      .step.done .step-node {
+        animation: nodePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Segment cards slide in */
+      @keyframes cardSlideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .segment-card {
+        animation: cardSlideIn 0.3s ease-out both;
+      }
+
+      /* Shimmer on generating card */
+      @keyframes shimmer {
+        0%   { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      @keyframes progressPulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.45; }
+      }
+
+      .segment-card.generating {
+        background: linear-gradient(
+          90deg,
+          var(--bg2) 25%,
+          rgba(168,85,247,0.15) 50%,
+          var(--bg2) 75%
+        );
+        background-size: 200% auto;
+        animation: cardSlideIn 0.3s ease-out both, shimmer 2s linear infinite;
+      }
+
+      /* Upload drop zone pulse while uploading */
+      @keyframes zonePulse {
+        0%, 100% { box-shadow: 0 0 0 0 var(--cyan-glow); border-color: var(--cyan); }
+        50%       { box-shadow: 0 0 30px var(--cyan-glow); border-color: var(--cyan); }
+      }
+
+      .drop-zone.uploading {
+        animation: zonePulse 1.5s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      /* Pipeline screen background grid */
+      .pipeline-screen::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .flow-col, .terminal-col, .segments-col {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Live badge pulse */
+      @keyframes livePulse {
+        0%, 100% { opacity: 1; background: var(--red-dim); }
+        50%       { opacity: 0.7; background: rgba(239,68,68,0.2); }
+      }
+
+      /* Terminal body fade-in on mount */
+      @keyframes terminalFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+
+      .terminal-body {
+        animation: terminalFadeIn 0.4s ease-out;
+      }
+
+      /* Status pill processing glow */
+      .status-pill.processing {
+        animation: pillGlow 2s ease-in-out infinite;
+      }
+
+      @keyframes pillGlow {
+        0%, 100% { box-shadow: 0 0 0 0 var(--cyan-glow); }
+        50%       { box-shadow: 0 0 10px var(--cyan-glow); }
+      }
+
+      /* ── PIPELINE TYPE TOGGLE ─────────────────────────────────── */
+      .type-toggle {
+        display: flex;
+        gap: 6px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
         margin-bottom: 20px;
+        max-width: 620px;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .type-btn {
+        flex: 1;
+        padding: 9px 16px;
+        border-radius: 7px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+      }
+
+      .type-btn svg { width: 14px; height: 14px; }
+
+      .type-btn.active {
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: white;
+      }
+
+      .type-btn:not(.active):hover { color: var(--text); }
+
+      /* ── PROGRESS BAR ─────────────────────────────────────────── */
+      .step-progress {
+        margin-top: 5px;
+        height: 3px;
+        background: var(--border2);
+        border-radius: 2px;
+        overflow: hidden;
+        display: none;
+      }
+
+      .step.active .step-progress { display: block; }
+
+      .step-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--cyan), var(--purple));
+        border-radius: 2px;
+        transition: width 1s linear;
+        width: 0%;
+      }
+
+      .step.active .step-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .step-pct {
+        font-size: 10px;
+        color: var(--cyan);
+        font-family: 'JetBrains Mono', monospace;
+        margin-left: auto;
+      }
+
+      /* ── LIBRARY SCREEN ────────────────────────────────────────── */
+      .library-screen {
+        flex-direction: column !important;
+        padding: 0;
+      }
+
+      .page-header {
+        padding: 20px 28px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .page-header h2 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+
+      .page-header p {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .library-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px 28px;
+      }
+
+      .episode-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .episode-table th {
+        text-align: left;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 0 12px 12px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 500;
+      }
+
+      .episode-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+        vertical-align: middle;
+      }
+
+      .episode-table tr:hover td { background: var(--bg2); }
+
+      .ep-id-cell {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--cyan);
+      }
+
+      .type-badge {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+
+      .type-badge.podcast { background: var(--cyan-dim); color: var(--cyan); }
+      .type-badge.clips   { background: var(--purple-dim); color: var(--purple); }
+
+      .status-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .status-badge.completed { background: var(--green-dim); color: var(--green); }
+      .status-badge.running   { background: var(--cyan-dim); color: var(--cyan); }
+      .status-badge.failed    { background: var(--red-dim); color: var(--red); }
+      .status-badge.unknown   { background: var(--bg3); color: var(--muted); }
+
+      .ep-actions { display: flex; gap: 8px; }
+
+      .btn-icon {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border2);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+      }
+
+      .btn-icon:hover { color: var(--text); border-color: var(--text); background: var(--bg3); }
+      .btn-icon.danger:hover { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+      .btn-icon svg { width: 13px; height: 13px; }
+
+      .empty-library {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 40px;
+        color: var(--muted);
+        text-align: center;
+        gap: 12px;
+      }
+
+      .empty-library svg { width: 48px; height: 48px; opacity: 0.2; }
+      .empty-library h3 { font-size: 16px; color: var(--text); }
+      .empty-library p  { font-size: 13px; }
+
+      /* ── LOGS SCREEN ───────────────────────────────────────────── */
+      .logs-screen {
+        flex-direction: column !important;
+        padding: 0;
+      }
+
+      .logs-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+      }
+
+      .logs-search {
+        flex: 1;
+        background: var(--bg3);
+        border: 1px solid var(--border2);
+        border-radius: 6px;
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        padding: 7px 12px;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .logs-search:focus { border-color: var(--cyan); }
+      .logs-search::placeholder { color: var(--muted); }
+
+      .logs-filter {
+        display: flex;
+        gap: 6px;
+      }
+
+      .filter-btn {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid var(--border2);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .filter-btn.active { color: var(--text); border-color: var(--text); background: var(--bg3); }
+      .filter-btn.info.active   { color: var(--purple); border-color: var(--purple); background: var(--purple-dim); }
+      .filter-btn.ok.active     { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+      .filter-btn.error.active  { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+
+      .logs-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        line-height: 1.9;
+        background: var(--bg);
+      }
+
+      .log-row {
+        display: grid;
+        grid-template-columns: 140px 60px 160px 1fr;
+        gap: 12px;
+        padding: 2px 0;
+        border-radius: 3px;
+        transition: background 0.1s;
+      }
+
+      .log-row:hover { background: var(--bg2); padding: 2px 6px; margin: 0 -6px; }
+      .log-row.hidden { display: none; }
+
+      .log-ts    { color: var(--muted); font-size: 11px; }
+      .log-level { font-weight: 700; font-size: 10px; letter-spacing: 0.5px; }
+      .log-level.INFO  { color: var(--purple); }
+      .log-level.ERROR { color: var(--red); }
+      .log-level.WARN  { color: var(--amber); }
+      .log-level.OK    { color: var(--green); }
+      .log-service { color: var(--muted); font-size: 11px; }
+      .log-text { color: var(--text); opacity: 0.85; }
+      .log-epid { color: var(--cyan); }
+
+      .logs-footer {
         display: flex;
         align-items: center;
         gap: 10px;
+        padding: 10px 20px;
+        border-top: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        font-size: 11px;
+        color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
       }
 
-      /* CLIPS GRID */
-      .clips-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      /* ── REVIEW SCREEN (clips HITL) ────────────────────────────── */
+      .review-screen {
+        flex-direction: column !important;
+        padding: 0;
+      }
+
+      .review-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 28px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        flex-wrap: wrap;
         gap: 12px;
-        margin-bottom: 20px;
+      }
+
+      .review-banner-left { display: flex; align-items: center; gap: 12px; }
+
+      .review-icon {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: var(--purple-dim);
+        border: 2px solid var(--purple);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .review-icon svg { width: 18px; height: 18px; stroke: var(--purple); }
+
+      .review-banner h2 { font-size: 18px; font-weight: 700; color: var(--purple); }
+      .review-banner .output-meta { color: var(--muted); font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+      .clips-grid {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+        align-content: start;
       }
 
       .clip-card {
+        background: var(--bg2);
         border: 1px solid var(--border);
-        border-radius: 4px;
+        border-radius: 10px;
         overflow: hidden;
-        transition: all 0.2s;
-        position: relative;
+        transition: all 0.15s;
+        cursor: pointer;
       }
 
-      .clip-card.selected {
-        border-color: var(--accent);
-      }
-      .clip-card.rejected {
-        opacity: 0.4;
-        border-color: var(--red);
-      }
+      .clip-card.selected { border-color: var(--cyan); }
+      .clip-card.rejected { opacity: 0.4; border-color: var(--red); }
 
-      .clip-card-header {
+      .clip-card-head {
         padding: 12px 14px;
-        background: var(--surface);
+        background: var(--bg3);
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: flex-start;
         gap: 10px;
       }
 
-      .clip-checkbox {
-        width: 16px;
-        height: 16px;
-        border: 1px solid var(--border-bright);
-        border-radius: 2px;
-        cursor: pointer;
+      .clip-check {
+        width: 18px; height: 18px;
+        border-radius: 4px;
+        border: 1px solid var(--border2);
+        display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: 1px;
+        transition: all 0.15s;
+        font-size: 11px;
+      }
+
+      .clip-check.on { background: var(--cyan); border-color: var(--cyan); color: #000; font-weight: 700; }
+
+      .clip-card-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+
+      .clip-card-body { padding: 12px 14px; }
+
+      .clip-ts-row { display: flex; gap: 8px; margin-bottom: 8px; }
+
+      .clip-ts {
+        font-size: 11px; font-family: 'JetBrains Mono', monospace;
+        background: var(--cyan-dim); color: var(--cyan);
+        padding: 2px 7px; border-radius: 4px;
+      }
+
+      .clip-dur {
+        font-size: 11px; font-family: 'JetBrains Mono', monospace;
+        background: var(--purple-dim); color: var(--purple);
+        padding: 2px 7px; border-radius: 4px;
+      }
+
+      .clip-reason { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+      /* ── Transcript Review Screen ── */
+      .transcript-screen { flex-direction: column; overflow: hidden; }
+      .transcript-screen.active { display: flex; }
+      .transcript-layout { display: flex; flex: 1; overflow: hidden; gap: 0; }
+      .transcript-left {
+        flex: 1.2; display: flex; flex-direction: column;
+        border-right: 1px solid var(--border); overflow: hidden;
+      }
+      .transcript-right {
+        flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      }
+      .transcript-header, .prompt-editor-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 20px 24px; border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .transcript-icon, .prompt-editor-icon {
+        width: 38px; height: 38px; border-radius: 10px;
+        background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--cyan); flex-shrink: 0;
+      }
+      .prompt-editor-icon { background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.2); color: var(--purple); }
+      .transcript-header h2, .prompt-editor-header h3 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+      .transcript-meta, .prompt-editor-sub { font-size: 11px; color: var(--text2); }
+      .transcript-edit-hint {
+        font-size: 10px; color: var(--cyan); padding: 4px 24px;
+        letter-spacing: 0.05em; flex-shrink: 0;
+      }
+      .transcript-body {
+        flex: 1; overflow-y: auto; padding: 16px 24px;
+        font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.8;
+        color: var(--text); white-space: pre-wrap; resize: none;
+        background: transparent; border: none; outline: none;
+        border-top: 1px solid var(--border);
+      }
+      .transcript-body:focus { background: rgba(0,212,255,0.02); }
+      .prompt-editor-body { flex: 1; display: flex; flex-direction: column; padding: 20px 24px; gap: 8px; }
+      .prompt-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text2); }
+      .prompt-textarea {
+        flex: 1; background: var(--bg2); border: 1px solid var(--border);
+        border-radius: 10px; color: var(--text); font-size: 13px;
+        font-family: 'Inter', sans-serif; line-height: 1.7; padding: 14px;
+        resize: none; outline: none; transition: border-color 0.2s;
+      }
+      .prompt-textarea:focus { border-color: var(--purple); }
+      .prompt-hint { font-size: 11px; color: var(--text3); }
+      .prompt-editor-actions {
+        padding: 16px 24px; border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .btn-continue {
+        display: flex; align-items: center; gap: 8px;
+        padding: 11px 22px; border-radius: 8px; border: none; cursor: pointer;
+        background: linear-gradient(135deg, var(--purple), #7c3aed);
+        color: #fff; font-weight: 600; font-size: 13px; width: 100%;
+        justify-content: center; transition: opacity 0.2s;
+      }
+      .btn-continue:hover { opacity: 0.88; }
+      .btn-continue svg { width: 14px; height: 14px; }
+
+      .approval-bar {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 10px;
+        padding: 14px 24px;
+        border-top: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+
+      .btn-approve {
+        padding: 9px 18px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: white;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         transition: all 0.15s;
       }
 
-      .clip-checkbox.checked {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: #000;
-        font-size: 10px;
-      }
+      .btn-approve:hover { opacity: 0.9; }
+      .btn-approve:disabled { opacity: 0.4; cursor: not-allowed; }
+      .btn-approve svg { width: 14px; height: 14px; }
 
-      .clip-title {
-        font-family: "Syne", sans-serif;
-        font-size: 13px;
-        font-weight: 600;
-        line-height: 1.3;
-      }
-
-      .clip-body {
-        padding: 12px 14px;
-      }
-
-      .clip-meta {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 8px;
-      }
-
-      .clip-time {
-        font-size: 11px;
-        color: var(--accent);
-        background: var(--accent-dim);
-        padding: 2px 7px;
-        border-radius: 2px;
-      }
-
-      .clip-reason {
-        font-size: 11px;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      /* METADATA PANEL */
-      .meta-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 20px;
-      }
-
-      .meta-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 14px;
-      }
-
-      .meta-label {
-        font-size: 10px;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
-
-      .meta-value {
-        font-size: 13px;
-        line-height: 1.5;
-        color: var(--text);
-      }
-
-      .tag-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .tag {
-        font-size: 11px;
-        padding: 2px 8px;
-        background: var(--blue-dim);
-        border: 1px solid rgba(96, 165, 250, 0.15);
-        border-radius: 2px;
-        color: var(--blue);
-      }
-
-      /* RENDERED OUTPUT */
-      .output-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 12px;
-      }
-
-      .output-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        overflow: hidden;
-      }
-
-      .output-thumb {
-        aspect-ratio: 9/16;
-        background: #1a1a1a;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        color: var(--muted);
-        position: relative;
-      }
-
-      .output-info {
-        padding: 10px 12px;
-      }
-      .output-name {
-        font-size: 11px;
-        color: var(--text);
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .output-size {
-        font-size: 10px;
-        color: var(--muted);
-      }
-
-      /* LOG */
-      .log-box {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 16px;
-        font-size: 12px;
-        line-height: 1.8;
-        max-height: 200px;
-        overflow-y: auto;
-        color: var(--muted);
-      }
-
-      .log-box .log-ok {
-        color: var(--green);
-      }
-      .log-box .log-warn {
-        color: var(--accent);
-      }
-      .log-box .log-err {
+      .btn-danger {
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(239,68,68,0.3);
+        background: var(--red-dim);
         color: var(--red);
-      }
-      .log-box .log-info {
-        color: var(--blue);
-      }
-
-      /* INPUT */
-      input[type="text"],
-      textarea {
-        width: 100%;
-        background: var(--surface);
-        border: 1px solid var(--border-bright);
-        border-radius: 3px;
-        color: var(--text);
-        font-family: "DM Mono", monospace;
-        font-size: 12px;
-        padding: 8px 12px;
-        outline: none;
-        transition: border-color 0.15s;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
       }
 
-      input[type="text"]:focus,
-      textarea:focus {
-        border-color: var(--accent);
-      }
-
-      /* EMPTY STATE */
-      .empty {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        gap: 12px;
-        color: var(--muted);
-        text-align: center;
-        padding: 40px;
-      }
-
-      .empty-icon {
-        font-size: 48px;
-        opacity: 0.3;
-      }
-
-      .divider {
-        height: 1px;
-        background: var(--border);
-        margin: 20px 0;
-      }
-
-      /* APPROVAL ACTIONS */
-      .approval-bar {
-        display: flex;
-        gap: 10px;
-        padding: 16px 28px;
-        border-top: 1px solid var(--border);
-        background: var(--bg);
-        position: sticky;
-        bottom: 0;
-      }
-
-      .approval-bar .btn {
-        width: auto;
-        margin-top: 0;
-        padding: 10px 20px;
-      }
+      .btn-danger:hover { background: rgba(239,68,68,0.2); }
 
       .sel-count {
         margin-left: auto;
-        display: flex;
-        align-items: center;
-        color: var(--muted);
         font-size: 12px;
-        gap: 6px;
+        color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
       }
 
-      .sel-count strong {
-        color: var(--accent);
+      .sel-count span { color: var(--cyan); }
+
+      /* ── CLIPS OUTPUT GRID ─────────────────────────────────────── */
+      .clips-output-grid {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 14px;
+        align-content: start;
       }
 
-      /* SCROLLBAR */
-      ::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--border-bright);
-        border-radius: 2px;
+      .clip-output-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
       }
 
+      .clip-output-card video {
+        width: 100%;
+        aspect-ratio: 9/16;
+        background: #000;
+        display: block;
+      }
+
+      .clip-output-info { padding: 10px 12px; }
+      .clip-output-title { font-size: 12px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .clip-output-dur { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+      /* ── SHARED UTILS ──────────────────────────────────────────── */
       .spinner {
         display: inline-block;
-        width: 12px;
-        height: 12px;
-        border: 2px solid var(--border-bright);
-        border-top-color: var(--accent);
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,0.2);
+        border-top-color: currentColor;
         border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+        animation: spin 0.7s linear infinite;
         vertical-align: middle;
       }
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
-    <header>
-      <div class="logo">Chalchitra<span>.</span></div>
-      <div class="badge">Pipeline Console</div>
-      <div class="badge" id="api-badge">API: localhost:8007</div>
-      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px">
-        <span class="status-label" id="api-status">checking...</span>
-        <div class="status-dot" id="status-dot" style="background: var(--muted); box-shadow: none"></div>
-      </div>
-    </header>
+    <div class="app">
 
-    <div class="layout">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4z"/></svg>
+          </div>
+          CHALCHITRA
+        </div>
+        <div class="topbar-right">
+          <span class="project-label" id="project-label" style="display:none"></span>
+          <div class="status-pill idle" id="status-pill">
+            <div class="status-dot"></div>
+            <span id="status-text">Ready</span>
+          </div>
+        </div>
+      </header>
+
       <!-- SIDEBAR -->
-      <div class="sidebar">
-        <!-- Upload -->
-        <div class="sidebar-section">
-          <div class="section-label">New Upload</div>
-          <div class="upload-zone" id="upload-zone">
-            <input type="file" id="file-input" accept=".mp4,.mp3,.wav,.m4a,.ogg,.webm,.mkv,.mov" />
-            <span class="upload-icon">⬆</span>
-            <div class="upload-text">
-              <strong>Drop video or click</strong>
-              mp4, mp3, wav, m4a, webm
-            </div>
-          </div>
-          <div id="file-name" style="color: var(--muted); font-size: 11px; margin-top: 8px; text-align: center"></div>
-          <button class="btn btn-primary" id="upload-btn" disabled>Start Pipeline</button>
-        </div>
+      <nav class="sidebar">
+        <div class="sidebar-label">AI COMMAND</div>
 
-        <!-- Poll -->
-        <div class="sidebar-section">
-          <div class="section-label">Check Episode</div>
-          <input type="text" id="poll-id" placeholder="paste episode_id..." style="margin-bottom: 8px" />
-          <button class="btn btn-ghost" onclick="pollEpisode()">Check Status</button>
-        </div>
+        <button class="nav-item active" id="nav-pipeline" onclick="switchNav('pipeline')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/>
+            <rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="12" width="6" height="6" rx="1"/>
+            <rect x="9" y="12" width="6" height="6" rx="1"/>
+          </svg>
+          Pipeline
+        </button>
 
-        <!-- Episode list -->
-        <div class="sidebar-section" style="flex: 1; overflow-y: auto">
-          <div class="section-label">Recent Episodes</div>
-          <div id="episode-list">
-            <div style="color: var(--muted); font-size: 11px">No episodes yet.</div>
-          </div>
+        <button class="nav-item" id="nav-library" onclick="switchNav('library')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="8" height="12" rx="1"/>
+            <rect x="14" y="2" width="8" height="7" rx="1"/>
+            <rect x="14" y="13" width="8" height="9" rx="1"/>
+            <rect x="2" y="18" width="8" height="4" rx="1"/>
+          </svg>
+          Library
+        </button>
+
+        <button class="nav-item" id="nav-logs" onclick="switchNav('logs')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          Logs
+        </button>
+
+        <div class="sidebar-spacer"></div>
+
+        <button class="nav-item" onclick="switchNav('settings')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </button>
+
+        <div class="api-status" style="margin-top:10px;">
+          <div class="api-dot" id="api-dot"></div>
+          <span id="api-label">:8007</span>
         </div>
-      </div>
+      </nav>
 
       <!-- MAIN -->
-      <div class="main" id="main-panel">
-        <div class="empty">
-          <div class="empty-icon">◈</div>
-          <div style="font-family: &quot;Syne&quot;, sans-serif; font-size: 15px; font-weight: 600; color: var(--text)">
-            No episode selected
+      <main class="main">
+
+        <!-- ─── SCREEN 1: UPLOAD ───────────────────────────────────── -->
+        <div class="screen upload-screen active" id="screen-upload">
+          <div class="upload-hero">
+            <h1>Initialize Your<br/>Production</h1>
+            <p>Upload raw footage and let the machine intelligence handle the cinematic orchestration. High-performance AI at your fingertips.</p>
+
+            <div class="type-toggle">
+              <button class="type-btn" id="type-clips" onclick="setPipelineType('clips')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                Clips Pipeline
+              </button>
+              <button class="type-btn active" id="type-podcast" onclick="setPipelineType('podcast')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                Podcast Pipeline
+              </button>
+            </div>
+
+            <div class="drop-zone" id="drop-zone">
+              <input type="file" id="file-input" accept=".mp4,.mov,.mkv,.webm,.m4a,.mp3,.wav" />
+              <div class="drop-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <h3>Drop your assets here</h3>
+              <p>MP4, MOV, or ProRes files supported</p>
+            </div>
+
+            <div class="file-selected" id="file-selected">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span class="file-name" id="file-name-label"></span>
+            </div>
+
+            <button class="btn-start" id="btn-start" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+              Start Pipeline
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
           </div>
-          <div>Upload a video or paste an episode ID to begin</div>
+
+          <div class="feature-cards">
+            <div class="feature-card">
+              <div class="feature-card-icon cyan">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2l2 7h7l-6 4 2 7-5-4-5 4 2-7-6-4h7z"/></svg>
+              </div>
+              <h4>AI Analysis</h4>
+              <p>Intelligent scene detection and semantic tagging of all uploaded footage for rapid organization.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-card-icon purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <h4>Enhancement</h4>
+              <p>Neural upscaling and color grading optimized for cinematic delivery across all platforms.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-card-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <h4>Final Export</h4>
+              <p>Chapters are stitched into a single podcast_final.mp4 with title cards, captions, and timestamps baked in.</p>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <!-- ─── SCREEN 2: PIPELINE ─────────────────────────────────── -->
+        <div class="screen pipeline-screen" id="screen-pipeline">
+
+          <!-- Flow Progression -->
+          <div class="flow-col">
+            <h3>Flow Progression</h3>
+            <div class="stepper" id="stepper">
+              <!-- Steps injected by JS -->
+            </div>
+          </div>
+
+          <!-- Terminal -->
+          <div class="terminal-col">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <div class="terminal-dot"></div>
+                <div class="terminal-dot"></div>
+                <div class="terminal-dot"></div>
+              </div>
+              <div class="terminal-title">pipeline_daemon.sh — chalchitra</div>
+              <div class="live-badge">LIVE</div>
+            </div>
+            <div class="terminal-body" id="terminal-body">
+              <!-- Log lines injected by JS -->
+            </div>
+          </div>
+
+          <!-- Detected Segments -->
+          <div class="segments-col">
+            <h3 id="segments-col-title">Detected Segments</h3>
+            <div id="segments-list">
+              <!-- Segment cards injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── SCREEN: LIBRARY ──────────────────────────────────────── -->
+        <div class="screen library-screen" id="screen-library">
+          <div class="page-header">
+            <div>
+              <h2>Library</h2>
+              <p id="library-subtitle">All processed episodes</p>
+            </div>
+            <button class="btn-secondary" onclick="clearLibrary()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              Clear All
+            </button>
+          </div>
+          <div class="library-body" id="library-body"></div>
+        </div>
+
+        <!-- ─── SCREEN: LOGS ───────────────────────────────────────────── -->
+        <div class="screen logs-screen" id="screen-logs">
+          <div class="logs-toolbar">
+            <input class="logs-search" id="logs-search" placeholder="Search logs..." oninput="filterLogs()" />
+            <div class="logs-filter">
+              <button class="filter-btn active" id="filter-all" onclick="setLogFilter('all')">All</button>
+              <button class="filter-btn info" id="filter-info" onclick="setLogFilter('info')">Info</button>
+              <button class="filter-btn ok" id="filter-ok" onclick="setLogFilter('ok')">OK</button>
+              <button class="filter-btn error" id="filter-error" onclick="setLogFilter('error')">Error</button>
+            </div>
+            <button class="btn-secondary" onclick="loadLogs()" style="padding:7px 12px;font-size:12px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+              Refresh
+            </button>
+          </div>
+          <div class="logs-body" id="logs-body"></div>
+          <div class="logs-footer">
+            <div class="live-dot" id="logs-live-dot" style="display:none"></div>
+            <span id="logs-line-count">0 lines</span>
+            <span style="margin-left:auto;" id="logs-last-update"></span>
+          </div>
+        </div>
+
+        <!-- ─── SCREEN 3: REVIEW (clips HITL) ───────────────────────── -->
+        <div class="screen review-screen" id="screen-review">
+          <div class="review-banner">
+            <div class="review-banner-left">
+              <div class="review-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div>
+                <h2>Review Clips</h2>
+                <div class="output-meta" id="review-meta">Select which clips to render</div>
+              </div>
+            </div>
+            <div class="output-banner-actions">
+              <button class="btn-secondary" onclick="selectAllClips()">Select All</button>
+              <button class="btn-danger" onclick="rejectAll()">Reject All</button>
+              <button class="btn-approve" id="btn-approve" onclick="approveClips()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg>
+                Approve &amp; Render
+              </button>
+            </div>
+          </div>
+          <div class="clips-grid" id="clips-grid"></div>
+          <div class="approval-bar">
+            <span class="sel-count">Selected: <span id="sel-count">0</span> clips</span>
+          </div>
+        </div>
+
+        <!-- ─── SCREEN: TRANSCRIPT REVIEW ───────────────────────────── -->
+        <div class="screen transcript-screen" id="screen-transcript">
+          <div class="transcript-layout">
+            <div class="transcript-left">
+              <div class="transcript-header">
+                <div class="transcript-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div>
+                  <h2>Transcription Complete</h2>
+                  <div class="transcript-meta" id="transcript-word-count">— words</div>
+                </div>
+              </div>
+              <div class="transcript-edit-hint">Click to edit and correct any mistakes</div>
+              <textarea class="transcript-body" id="transcript-body" spellcheck="true"></textarea>
+            </div>
+            <div class="transcript-right">
+              <div class="prompt-editor-header">
+                <div class="prompt-editor-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                </div>
+                <div>
+                  <h3 id="prompt-editor-title">AI Instructions</h3>
+                  <p class="prompt-editor-sub" id="prompt-editor-sub">Tell the AI what to look for in this video</p>
+                </div>
+              </div>
+              <div class="prompt-editor-body">
+                <label class="prompt-label" id="prompt-label-text">DETECTION PROMPT</label>
+                <textarea id="custom-prompt-input" class="prompt-textarea" placeholder="e.g. Find the most educational moments, focus on actionable tips under 60 seconds..."></textarea>
+                <div class="prompt-hint">Leave blank to use the default detection prompt</div>
+              </div>
+              <div class="prompt-editor-actions">
+                <button class="btn-continue" onclick="resumeTranscript()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg>
+                  Continue Pipeline
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── SCREEN 4: OUTPUT ───────────────────────────────────── -->
+        <div class="screen output-screen" id="screen-output">
+
+          <div class="output-banner" id="output-banner">
+            <div class="output-banner-left">
+              <div class="success-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <h2>Pipeline Complete</h2>
+                <div class="output-meta" id="output-meta">PODCAST_FINAL.MP4</div>
+              </div>
+            </div>
+            <div class="output-banner-actions">
+              <button class="btn-secondary" onclick="resetToUpload()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+                Run Another
+              </button>
+              <a class="btn-download" id="btn-download" href="#" download="podcast_final.mp4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Podcast
+              </a>
+            </div>
+          </div>
+
+          <!-- Podcast output -->
+          <div class="output-body" id="output-podcast">
+            <div class="video-col">
+              <div class="video-wrapper">
+                <video id="output-video" controls style="width:100%;height:100%;object-fit:contain;"></video>
+              </div>
+            </div>
+            <div class="chapters-col">
+              <div class="chapters-header">
+                <h3>Video Chapters</h3>
+                <span class="chapters-count" id="chapters-count">0 TOTAL</span>
+              </div>
+              <div class="chapters-list" id="chapters-list"></div>
+              <div class="live-logs-mini">
+                <div class="live-logs-mini-header">
+                  <div class="live-dot"></div>
+                  Live Logs
+                </div>
+                <pre id="mini-logs"></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clips output -->
+          <div class="clips-output-grid hidden" id="output-clips"></div>
+        </div>
+
+      </main>
     </div>
 
     <script>
-      const API = "http://localhost:8007";
-      const GATEWAY = "http://localhost:8000";
+      // ═══════════════════════════════════════════════════════════════
+      // CONFIG
+      // ═══════════════════════════════════════════════════════════════
+      const GATEWAY      = 'http://localhost:8000';
+      const ORCHESTRATOR = 'http://localhost:8007';
+      const MEDIA_BASE   = '/media';
 
-      let episodes = JSON.parse(localStorage.getItem("chalchitra_episodes") || "[]");
-      let currentEpisode = null;
-      let pollTimer = null;
+      const PODCAST_STEPS = [
+        { key: 'transcribe', label: 'TRANSCRIBE',        icon: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>' },
+        { key: 'chapters',   label: 'CHAPTER DETECTION', icon: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>' },
+        { key: 'cut',        label: 'CUT',               icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>' },
+        { key: 'renderer',   label: 'RENDER',            icon: '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>' },
+      ];
 
-      // ── API Health ──────────────────────────────────────────────
-      async function checkHealth() {
+      const CLIP_STEPS = [
+        { key: 'transcribe',   label: 'TRANSCRIBE', icon: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>' },
+        { key: 'enrich',       label: 'ENRICH',     icon: '<path d="M12 2l2 7h7l-6 4 2 7-5-4-5 4 2-7-6-4h7z"/>' },
+        { key: 'detect',       label: 'DETECT',     icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' },
+        { key: 'ffmpeg',       label: 'CUT',        icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>' },
+        { key: 'filter_clips', label: 'REVIEW',     icon: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>' },
+        { key: 'renderer',     label: 'RENDER',     icon: '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>' },
+      ];
+
+      // ═══════════════════════════════════════════════════════════════
+      // STATE
+      // ═══════════════════════════════════════════════════════════════
+      let state = {
+        screen: 'upload',
+        pipelineScreen: 'upload',
+        pipelineType: 'podcast', // 'podcast' | 'clips'
+        episodeId: null,
+        pollTimer: null,
+        logLines: [],
+        currentClips: [],
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      // PIPELINE TYPE
+      // ═══════════════════════════════════════════════════════════════
+      function setPipelineType(type) {
+        state.pipelineType = type;
+        document.getElementById('type-clips').classList.toggle('active', type === 'clips');
+        document.getElementById('type-podcast').classList.toggle('active', type === 'podcast');
+        document.getElementById('segments-col-title').textContent = type === 'clips' ? 'Detected Clips' : 'Detected Segments';
+        // Reset prompt textarea so it shows the correct default for this pipeline
+        const ta = document.getElementById('custom-prompt-input');
+        if (ta) ta.value = '';
+        buildStepper();
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // INIT
+      // ═══════════════════════════════════════════════════════════════
+      checkApiHealth();
+      setInterval(checkApiHealth, 15000);
+      buildStepper();
+
+      (async () => {
+        const saved = localStorage.getItem('chalchitra_episode');
+        if (!saved) return;
         try {
-          const r = await fetch(`${API}/pipeline/status/health-check`).catch(() => null);
-          // Just check if orchestrator responds at all
-          const r2 = await fetch(`${API}/openapi.json`);
-          if (r2.ok) {
-            document.getElementById("api-status").textContent = "connected";
-            document.getElementById("status-dot").style.background = "var(--green)";
-            document.getElementById("status-dot").style.boxShadow = "0 0 8px var(--green)";
+          const ep = JSON.parse(saved);
+          if (!ep.episodeId || ep.screen === 'upload') return;
+
+          state.episodeId = ep.episodeId;
+          state.pipelineType = ep.pipelineType || 'podcast';
+          setPipelineType(state.pipelineType);
+          document.getElementById('project-label').textContent = ep.episodeId.slice(0,8) + '...';
+          document.getElementById('project-label').style.display = '';
+
+          // Fetch current status immediately
+          const endpoint = state.pipelineType === 'podcast'
+            ? `${ORCHESTRATOR}/podcast/status/${ep.episodeId}`
+            : `${ORCHESTRATOR}/pipeline/status/${ep.episodeId}`;
+
+          const r = await fetch(endpoint).catch(() => null);
+          if (!r || !r.ok) { goTo('upload'); return; }
+
+          const data = await r.json();
+          const s = data.state || {};
+
+          // Jump straight to output if done
+          if (s.pipeline_status === 'completed' || s.final_video || s.rendered_clips?.length) {
+            state.pipelineType === 'podcast' ? showPodcastOutput(s) : showClipsOutput(s);
+          } else if (data.at_interrupt && s.cut_clips?.length) {
+            goTo('pipeline');
+            buildStepper();
+            updateStepper(getClipsActiveStep(s, true), s);
+            showReview(s.cut_clips);
+          } else {
+            goTo('pipeline');
+            handleStatusUpdate(data);
+            startPolling();
           }
+        } catch {}
+      })();
+
+      // ═══════════════════════════════════════════════════════════════
+      // HEALTH
+      // ═══════════════════════════════════════════════════════════════
+      async function checkApiHealth() {
+        try {
+          const r = await fetch(`${ORCHESTRATOR}/openapi.json`, { signal: AbortSignal.timeout(4000) });
+          const ok = r.ok;
+          document.getElementById('api-dot').className = 'api-dot ' + (ok ? 'online' : 'offline');
+          document.getElementById('api-label').textContent = ok ? ':8007 online' : ':8007 offline';
         } catch {
-          document.getElementById("api-status").textContent = "offline";
-          document.getElementById("status-dot").style.background = "var(--red)";
-          document.getElementById("status-dot").style.boxShadow = "none";
+          document.getElementById('api-dot').className = 'api-dot offline';
+          document.getElementById('api-label').textContent = ':8007 offline';
         }
       }
 
-      // ── Upload ──────────────────────────────────────────────────
-      const fileInput = document.getElementById("file-input");
-      const uploadBtn = document.getElementById("upload-btn");
-      const uploadZone = document.getElementById("upload-zone");
+      // ═══════════════════════════════════════════════════════════════
+      // UPLOAD
+      // ═══════════════════════════════════════════════════════════════
+      const fileInput = document.getElementById('file-input');
+      const dropZone  = document.getElementById('drop-zone');
+      const btnStart  = document.getElementById('btn-start');
 
-      fileInput.addEventListener("change", () => {
-        if (fileInput.files[0]) {
-          document.getElementById("file-name").textContent = fileInput.files[0].name;
-          uploadBtn.disabled = false;
+      fileInput.addEventListener('change', () => {
+        const f = fileInput.files[0];
+        if (!f) return;
+        document.getElementById('file-name-label').textContent = f.name;
+        document.getElementById('file-selected').classList.add('show');
+        btnStart.disabled = false;
+      });
+
+      dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+        if (e.dataTransfer.files[0]) {
+          fileInput.files = e.dataTransfer.files;
+          fileInput.dispatchEvent(new Event('change'));
         }
       });
 
-      uploadZone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        uploadZone.classList.add("drag");
-      });
-      uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
-      uploadZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        uploadZone.classList.remove("drag");
-        fileInput.files = e.dataTransfer.files;
-        fileInput.dispatchEvent(new Event("change"));
-      });
+      btnStart.addEventListener('click', startUpload);
 
-      uploadBtn.addEventListener("click", async () => {
+      async function startUpload() {
         const file = fileInput.files[0];
         if (!file) return;
 
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="spinner"></span> Uploading...';
+        btnStart.disabled = true;
+        btnStart.innerHTML = '<span class="spinner"></span> Uploading...';
+        document.getElementById('drop-zone').classList.add('uploading');
 
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append('file', file);
+
+        const endpoint = state.pipelineType === 'podcast'
+          ? `${GATEWAY}/api/upload/podcast`
+          : `${GATEWAY}/api/upload/`;
 
         try {
-          const r = await fetch(`${GATEWAY}/api/upload/`, { method: "POST", body: fd });
+          const r = await fetch(endpoint, { method: 'POST', body: fd });
+          if (!r.ok) throw new Error(`Upload failed: ${r.status}`);
           const data = await r.json();
-          const ep = {
-            id: data.episode_id,
-            file: data.file,
-            status: "running",
-            created: new Date().toISOString(),
-          };
-          episodes.unshift(ep);
-          saveEpisodes();
-          renderEpisodeList();
-          log(`✓ Uploaded. Episode: ${data.episode_id}`, "ok");
-          loadEpisode(data.episode_id);
-          startPolling(data.episode_id);
+
+          state.episodeId = data.episode_id;
+          state.logLines = [];
+          state.currentClips = [];
+          localStorage.setItem('chalchitra_episode', JSON.stringify({
+            episodeId: data.episode_id,
+            pipelineType: state.pipelineType,
+            screen: 'pipeline',
+          }));
+
+          setStatusPill('processing', 'Processing');
+          document.getElementById('project-label').textContent = data.episode_id.slice(0, 8) + '...';
+          document.getElementById('project-label').style.display = '';
+
+          const typeLabel = state.pipelineType === 'podcast' ? 'Podcast' : 'Clips';
+          appendLog('INIT', `${typeLabel} pipeline initialized — episode ${data.episode_id.slice(0,8)}`);
+          appendLog('OK',   `File uploaded: ${file.name}`);
+          appendLog('AI',   'Model loaded: Neural-Whisper-v4');
+          recordEpisodeStart(data.episode_id, file.name, state.pipelineType);
+
+          buildStepper();
+          document.getElementById('drop-zone').classList.remove('uploading');
+          goTo('pipeline');
+          startPolling();
         } catch (e) {
-          log(`✗ Upload failed: ${e.message}`, "err");
-        } finally {
-          uploadBtn.disabled = false;
-          uploadBtn.textContent = "Start Pipeline";
-          fileInput.value = "";
-          document.getElementById("file-name").textContent = "";
+          document.getElementById('drop-zone').classList.remove('uploading');
+          appendLog('ERR', e.message);
+          btnStart.disabled = false;
+          btnStart.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+            Start Pipeline
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
         }
-      });
-
-      // ── Polling ─────────────────────────────────────────────────
-      function startPolling(episodeId) {
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(async () => {
-          const data = await fetchStatus(episodeId);
-          if (!data) return;
-          const status = data.state?.pipeline_status;
-          updateEpisodeStatus(episodeId, status);
-          if (currentEpisode === episodeId) renderMainPanel(data);
-          if (status === "completed") {
-            clearInterval(pollTimer);
-          }
-        }, 8000);
       }
 
-      async function fetchStatus(id) {
+      // ═══════════════════════════════════════════════════════════════
+      // POLLING
+      // ═══════════════════════════════════════════════════════════════
+      function startPolling() {
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        poll(); // immediate
+        state.pollTimer = setInterval(poll, 5000);
+      }
+
+      async function poll() {
+        if (!state.episodeId) return;
         try {
-          const r = await fetch(`${API}/pipeline/status/${id}`);
-          if (r.status === 404) {
-            updateEpisodeStatus(id, "not_found");
-            return null;
-          }
-          return await r.json();
-        } catch {
-          return null;
-        }
+          const endpoint = state.pipelineType === 'podcast'
+            ? `${ORCHESTRATOR}/podcast/status/${state.episodeId}`
+            : `${ORCHESTRATOR}/pipeline/status/${state.episodeId}`;
+          const r = await fetch(endpoint);
+          if (r.status === 404) return;
+          const data = await r.json();
+          handleStatusUpdate(data);
+        } catch {}
       }
 
-      async function pollEpisode() {
-        const id = document.getElementById("poll-id").value.trim();
-        if (!id) return;
-        if (!episodes.find((e) => e.id === id)) {
-          episodes.unshift({ id, status: "unknown", created: new Date().toISOString() });
-          saveEpisodes();
-          renderEpisodeList();
-        }
-        loadEpisode(id);
-      }
-
-      async function loadEpisode(id) {
-        currentEpisode = id;
-        document.querySelectorAll(".episode-item").forEach((el) => {
-          el.classList.toggle("active", el.dataset.id === id);
-        });
-
-        renderMainPanel(null, true);
-        const data = await fetchStatus(id);
-        if (data) {
-          updateEpisodeStatus(id, data.state?.pipeline_status);
-          renderEpisodeList();
-          renderMainPanel(data);
-          const status = data.state?.pipeline_status;
-          if (status === "running" || (!status && data.next?.length)) {
-            startPolling(id);
-          }
-        }
-      }
-
-      // ── Render Main Panel ────────────────────────────────────────
-      function renderMainPanel(data, loading = false) {
-        const main = document.getElementById("main-panel");
-
-        if (loading) {
-          main.innerHTML = `<div class="empty"><span class="spinner"></span><div style="margin-top:12px;color:var(--muted);">Loading...</div></div>`;
-          return;
-        }
-
-        if (!data) {
-          main.innerHTML = `<div class="empty"><div class="empty-icon">◈</div><div>Could not load episode</div></div>`;
-          return;
-        }
-
-        const state = data.state || {};
-        const status = state.pipeline_status || "running";
-        const next = data.next || [];
+      function handleStatusUpdate(data) {
+        const s = data.state || {};
+        const status = s.pipeline_status;
         const atInterrupt = data.at_interrupt;
+        const next = data.next || [];
 
-        const steps = ["transcribe", "enrich", "detect", "ffmpeg", "filter_clips", "renderer"];
-        const doneSteps = getDoneSteps(state, next);
-
-        let html = "";
-
-        // Pipeline bar
-        html += `<div class="pipeline-bar">`;
-        steps.forEach((s, i) => {
-          const isDone = doneSteps.includes(s);
-          const isNext = next[0] === s;
-          const cls = isDone ? "done" : isNext && atInterrupt ? "paused" : isNext ? "active" : "pending";
-          const label = {
-            transcribe: "Whisper",
-            enrich: "Enrich",
-            detect: "Detect",
-            ffmpeg: "FFmpeg",
-            filter_clips: "Filter",
-            renderer: "Render",
-          }[s];
-          html += `<div class="pipe-step"><div class="pipe-node ${cls}">${label}</div>`;
-          if (i < steps.length - 1) html += `<div class="pipe-arrow"></div>`;
-          html += `</div>`;
-        });
-        html += `</div>`;
-
-        html += `<div class="content">`;
-
-        // Episode ID + status
-        html += `<div class="panel-title">
-    <span>${currentEpisode?.slice(0, 8)}...</span>
-    <span class="ep-status ${status === "awaiting_approval" ? "awaiting" : status === "completed" ? "completed" : "running"}">
-      ${status === "awaiting_approval" ? "⏸ Awaiting Approval" : status === "completed" ? "✓ Completed" : "⟳ Running"}
-    </span>
-  </div>`;
-
-        // METADATA
-        if (state.title || state.show_notes || state.tags) {
-          html += `<div class="section-label" style="margin-bottom:10px;">Enrichment</div>
-    <div class="meta-grid">`;
-          if (state.title)
-            html += `<div class="meta-card" style="grid-column:1/-1"><div class="meta-label">Title</div><div class="meta-value" style="font-family:'Syne',sans-serif;font-size:15px;font-weight:600;">${state.title}</div></div>`;
-          if (state.show_notes)
-            html += `<div class="meta-card"><div class="meta-label">Show Notes</div><div class="meta-value">${state.show_notes}</div></div>`;
-          if (state.tags?.length) {
-            html += `<div class="meta-card"><div class="meta-label">Tags</div><div class="tag-list">`;
-            state.tags.forEach((t) => (html += `<span class="tag">${t}</span>`));
-            html += `</div></div>`;
+        if (state.pipelineType === 'podcast') {
+          const activeStep = getPodcastActiveStep(s);
+          updateStepper(activeStep, s);
+          updateSegments(s.chapters || [], 'podcast');
+          updateTerminal(s, activeStep, 'podcast');
+          if (atInterrupt && !s.chapters && s.transcript_text && state.screen !== 'transcript') {
+            showTranscriptReview(s);
+          } else if (status === 'completed' || s.final_video) {
+            clearInterval(state.pollTimer);
+            showPodcastOutput(s);
           }
-          html += `</div><div class="divider"></div>`;
-        }
-
-        // CLIPS FOR APPROVAL
-        if (atInterrupt && state.cut_clips?.length) {
-          html += `<div class="section-label" style="margin-bottom:10px;">Review Clips — select which to render</div>
-    <div class="clips-grid" id="clips-grid">`;
-
-          state.cut_clips.forEach((clip, i) => {
-            const dur = Math.round(clip.end_seconds - clip.start_seconds);
-            html += `
-      <div class="clip-card selected" id="clip-${i}" data-index="${i}" onclick="toggleClip(${i})">
-        <div class="clip-card-header">
-          <div class="clip-checkbox checked" id="check-${i}">✓</div>
-          <div class="clip-title">${clip.title}</div>
-        </div>
-        <div class="clip-body">
-          <div class="clip-meta">
-            <span class="clip-time">${fmtTime(clip.start_seconds)} → ${fmtTime(clip.end_seconds)}</span>
-            <span class="clip-time" style="background:var(--blue-dim);color:var(--blue);">${dur}s</span>
-          </div>
-          <div class="clip-reason">${clip.reason}</div>
-        </div>
-      </div>`;
-          });
-
-          html += `</div>`;
-          html += `<div class="approval-bar">
-      <button class="btn btn-success" onclick="approveClips('${currentEpisode}')">▶ Approve & Render Selected</button>
-      <button class="btn btn-ghost" onclick="selectAll()">Select All</button>
-      <button class="btn btn-danger" onclick="rejectAll('${currentEpisode}')">✕ Reject All</button>
-      <div class="sel-count">Selected: <strong id="sel-count">${state.cut_clips.length}</strong> / ${state.cut_clips.length}</div>
-    </div>`;
-
-          // Store clips data for approval
-          window._currentClips = state.cut_clips;
-        }
-
-        // COMPLETED OUTPUT
-        if (status === "completed") {
-          if (state.rendered_clips?.length) {
-            html += `<div class="section-label" style="margin-bottom:10px;">Rendered Output (${state.rendered_clips.length} clips)</div>
-      <div class="output-grid">`;
-            state.rendered_clips.forEach((clip) => {
-              const filename = clip.rendered_clip?.split("/").pop() || "";
-              const name = filename || clip.title;
-              const episodeId = state.episode_id || currentEpisode;
-              const src = filename ? `http://localhost:3000/media/${episodeId}/${filename}` : "";
-              html += `<div class="output-card">
-          <video src="${src}" controls style="width:100%;aspect-ratio:9/16;background:#000;display:block;"></video>
-          <div class="output-info">
-            <div class="output-name">${name}</div>
-            <div class="output-size">${fmtTime(clip.end_seconds - clip.start_seconds || 0)} duration</div>
-          </div>
-        </div>`;
-            });
-            html += `</div>`;
-          }
-          if (state.failed_clips?.length) {
-            html += `<div class="divider"></div><div class="section-label" style="color:var(--red);margin-bottom:10px;">Failed (${state.failed_clips.length})</div>`;
-            state.failed_clips.forEach((c) => {
-              html += `<div style="padding:10px 12px;background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:3px;margin-bottom:8px;font-size:11px;color:var(--red);">${c.title}: ${c.error}</div>`;
-            });
+        } else {
+          const activeStep = getClipsActiveStep(s, atInterrupt);
+          updateStepper(activeStep, s);
+          updateSegments(s.detected_clips || [], 'clips');
+          updateTerminal(s, activeStep, 'clips');
+          if (atInterrupt && !s.detected_clips && s.transcript_text && state.screen !== 'transcript') {
+            showTranscriptReview(s);
+          } else if (atInterrupt && s.cut_clips?.length && state.screen !== 'review') {
+            goTo('pipeline');
+            showReview(s.cut_clips);
+          } else if (status === 'completed' || s.rendered_clips?.length) {
+            clearInterval(state.pollTimer);
+            showClipsOutput(s);
           }
         }
-
-        // RUNNING STATE
-        if (status === "running" || (!status && next.includes("transcribe"))) {
-          html += `<div style="display:flex;flex-direction:column;align-items:center;padding:40px;gap:12px;color:var(--muted);">
-      <span class="spinner" style="width:24px;height:24px;border-width:3px;"></span>
-      <div style="font-family:'Syne',sans-serif;color:var(--text);">Pipeline running</div>
-      <div style="font-size:11px;">Auto-refreshing every 8 seconds...</div>
-    </div>`;
-        }
-
-        html += `</div>`;
-        main.innerHTML = html;
       }
 
-      // ── Clip Selection ───────────────────────────────────────────
+      function getPodcastActiveStep(s) {
+        if (s.final_video || s.rendered_chapters?.length) return 'done';
+        if (s.chapter_clips?.length) return 'renderer';
+        if (s.chapters?.length) return 'cut';
+        if (s.transcript_text) return 'chapters';
+        return 'transcribe';
+      }
+
+      function getClipsActiveStep(s, atInterrupt) {
+        if (s.rendered_clips?.length || s.pipeline_status === 'completed') return 'done';
+        if (atInterrupt && s.cut_clips?.length) return 'filter_clips';
+        if (s.cut_clips?.length) return 'renderer';
+        if (s.detected_clips?.length) return 'ffmpeg';
+        if (s.tags?.length || s.title) return 'detect';
+        if (s.transcript_text) return 'enrich';
+        return 'transcribe';
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // STEPPER
+      // ═══════════════════════════════════════════════════════════════
+      function buildStepper() {
+        const steps = state.pipelineType === 'podcast' ? PODCAST_STEPS : CLIP_STEPS;
+        const el = document.getElementById('stepper');
+        el.innerHTML = steps.map(step => `
+          <div class="step pending" id="step-${step.key}">
+            <div class="step-line"></div>
+            <div class="step-node">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${step.icon}</svg>
+            </div>
+            <div class="step-info">
+              <div class="step-name">${step.label}</div>
+              <div class="step-status" id="step-status-${step.key}">
+                <span id="step-status-text-${step.key}">Waiting</span>
+                <span class="step-pct" id="step-pct-${step.key}" style="display:none">0%</span>
+              </div>
+              <div class="step-progress">
+                <div class="step-progress-fill" id="step-progress-fill-${step.key}"></div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Track when each step started for progress estimation
+      const stepStartTimes = {};
+      // Estimated durations in seconds per step
+      const stepDurations = {
+        transcribe: 600, chapters: 120, cut: 60, renderer: 300,
+        enrich: 30, detect: 30, ffmpeg: 60, filter_clips: 0,
+      };
+
+      function updateStepper(activeStep, s) {
+        const steps = state.pipelineType === 'podcast' ? PODCAST_STEPS : CLIP_STEPS;
+        const order = steps.map(st => st.key);
+        const activeIdx = activeStep === 'done' ? order.length : order.indexOf(activeStep);
+
+        steps.forEach((step, i) => {
+          const el = document.getElementById(`step-${step.key}`);
+          if (!el) return;
+          const textEl  = document.getElementById(`step-status-text-${step.key}`);
+          const pctEl   = document.getElementById(`step-pct-${step.key}`);
+          const fillEl  = document.getElementById(`step-progress-fill-${step.key}`);
+
+          el.className = 'step ' + (i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending');
+
+          if (i < activeIdx) {
+            textEl.textContent = 'Completed';
+            if (pctEl) { pctEl.textContent = '100%'; pctEl.style.display = ''; }
+            if (fillEl) fillEl.style.width = '100%';
+            el.querySelector('.step-node').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
+            delete stepStartTimes[step.key];
+          } else if (i === activeIdx) {
+            if (!stepStartTimes[step.key]) stepStartTimes[step.key] = Date.now();
+            if (step.key === 'filter_clips') {
+              textEl.textContent = 'Awaiting review';
+              if (pctEl) pctEl.style.display = 'none';
+            } else {
+              const elapsed = (Date.now() - stepStartTimes[step.key]) / 1000;
+              const est = stepDurations[step.key] || 120;
+              const pct = Math.min(95, Math.round((elapsed / est) * 100));
+              const atCap = pct >= 95;
+              textEl.textContent = atCap ? 'Still working...' : 'Processing...';
+              if (pctEl) { pctEl.textContent = pct + '%'; pctEl.style.display = ''; }
+              if (fillEl) {
+                fillEl.style.width = pct + '%';
+                fillEl.style.animation = atCap ? 'progressPulse 1.2s ease-in-out infinite' : '';
+              }
+            }
+          } else {
+            textEl.textContent = 'Waiting';
+            if (pctEl) pctEl.style.display = 'none';
+            if (fillEl) fillEl.style.width = '0%';
+          }
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // TERMINAL
+      // ═══════════════════════════════════════════════════════════════
+      function appendLog(tag, msg) {
+        state.logLines.push({ tag, msg });
+        if (state.logLines.length > 200) state.logLines.shift();
+        renderTerminal();
+      }
+
+      function renderTerminal() {
+        const body = document.getElementById('terminal-body');
+        if (!body) return;
+        body.innerHTML = state.logLines.map((l, i) => `
+          <div class="log-line" style="animation-delay:${Math.min(i * 0.03, 0.3)}s">
+            <span class="log-tag ${l.tag.toLowerCase()}">[${l.tag}]</span>
+            <span class="log-msg">${l.msg}</span>
+          </div>
+        `).join('');
+        body.scrollTop = body.scrollHeight;
+      }
+
+      let _lastLogStep = null;
+      function updateTerminal(s, activeStep, pipelineType) {
+        const key = `${pipelineType}:${activeStep}`;
+        if (key !== _lastLogStep) {
+          _lastLogStep = key;
+
+          const podcastMsgs = {
+            transcribe:  [['AI','Triggering Whisper transcription engine...'],['INFO','Analyzing audio stream for speech segments']],
+            chapters:    [['OK',`Transcription complete — ${(s.words||[]).length} words`],['AI','Triggering Semantic Segmentation module...'],['INFO','Clustering semantic tokens for scene transitions...']],
+            cut:         [['OK',`Chapter metadata generated — ${(s.chapters||[]).length} chapters`],['INFO','Triggering ffmpeg cut engine']],
+            renderer:    [['OK',`Cut complete — ${(s.chapter_clips||[]).length} clips`],['INFO','Rendering title cards with blurred-frame backgrounds'],['AI','Burning captions into chapter segments']],
+            done:        [['OK','All chapters rendered'],['OK','Stitching final podcast video...'],['OK','Stitch done → podcast_final.mp4']],
+          };
+
+          const clipMsgs = {
+            transcribe:   [['AI','Triggering Whisper transcription engine...'],['INFO','Analyzing audio stream for speech segments']],
+            enrich:       [['OK',`Transcription complete — ${(s.words||[]).length} words`],['AI','Enriching metadata: title, tags, show notes...']],
+            detect:       [['OK','Enrichment done — title extracted'],['AI','Running viral clip detection model...']],
+            ffmpeg:       [['OK',`Detected ${(s.detected_clips||[]).length} clips`],['INFO','Cutting clips with ffmpeg...']],
+            filter_clips: [['OK',`${(s.cut_clips||[]).length} clips cut`],['WARN','⏸ Awaiting human review before rendering']],
+            renderer:     [['OK','Clips approved — starting renderer'],['AI','Rendering clips with captions and overlays...']],
+            done:         [['OK',`Rendering complete — ${(s.rendered_clips||[]).length} clips ready`]],
+          };
+
+          const msgs = pipelineType === 'podcast' ? podcastMsgs : clipMsgs;
+          (msgs[activeStep] || []).forEach(([tag, msg]) => appendLog(tag, msg));
+        }
+
+        const mini = document.getElementById('mini-logs');
+        if (mini && state.logLines.length) {
+          mini.textContent = state.logLines.slice(-4).map(l => `[${l.tag}] ${l.msg}`).join('\n');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // SEGMENTS (right panel while pipeline runs)
+      // ═══════════════════════════════════════════════════════════════
+      let _lastSegmentCount = -1;
+      function updateSegments(items, type) {
+        if (items.length === _lastSegmentCount) return;
+        _lastSegmentCount = items.length;
+
+        const el = document.getElementById('segments-list');
+        if (!items.length) {
+          const msg = type === 'clips' ? 'Awaiting clip detection...' : 'Awaiting chapter detection...';
+          el.innerHTML = `<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">${msg}</div>`;
+          return;
+        }
+
+        if (type === 'clips') {
+          el.innerHTML = items.map((clip, i) => `
+            <div class="segment-card ${i === items.length - 1 ? 'generating' : ''}">
+              <div class="segment-ts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                ${fmtTime(clip.start_seconds)} – ${fmtTime(clip.end_seconds)}
+              </div>
+              <div class="segment-title">${clip.title || 'Clip ' + (i+1)}</div>
+              <div class="segment-subtitle">${clip.reason || ''}</div>
+            </div>
+          `).join('');
+        } else {
+          el.innerHTML = items.map((ch, i) => `
+            <div class="segment-card ${i === items.length - 1 ? 'generating' : ''}">
+              <div class="segment-ts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                ${fmtTime(ch.start_seconds)} – ${fmtTime(ch.end_seconds)}
+              </div>
+              <div class="segment-title">${ch.title}</div>
+              <div class="segment-subtitle">${ch.subtitle || ''}</div>
+            </div>
+          `).join('');
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
+      // TRANSCRIPT REVIEW SCREEN
+      // ═══════════════════════════════════════════════════════════════
+      const DEFAULT_DETECT_PROMPT = `Find the most engaging and shareable moments from this video.
+
+Look for clips that:
+- Deliver a clear, standalone point
+- Have energy, emotion, or a surprising insight
+- Are 20–90 seconds long
+- Work without needing context from the rest of the video
+
+Pick 2–4 clips maximum. Do not overlap.`;
+
+      const DEFAULT_CHAPTERS_PROMPT = `Identify 4–6 major chapters based on topic shifts in the conversation.
+
+Each chapter should:
+- Cover a distinct topic or segment
+- Have a clear beginning and end based on the transcript
+- Be at least 30 seconds long
+
+Use real timestamps from the transcript — do not invent evenly-spaced intervals.`;
+
+      function showTranscriptReview(s) {
+        const text = s.transcript_text || '';
+        const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+        document.getElementById('transcript-word-count').textContent =
+          `${wordCount.toLocaleString()} words transcribed — edit to correct mistakes`;
+        document.getElementById('transcript-body').value = text;
+
+        const isPodcast = state.pipelineType === 'podcast';
+        document.getElementById('prompt-label-text').textContent =
+          isPodcast ? 'CHAPTER DETECTION PROMPT' : 'DETECTION PROMPT';
+        document.getElementById('prompt-editor-title').textContent =
+          isPodcast ? 'Chapter Instructions' : 'AI Instructions';
+        document.getElementById('prompt-editor-sub').textContent =
+          isPodcast ? 'Tell the AI how to split this into chapters' : 'Tell the AI what to look for in this video';
+
+        const ta = document.getElementById('custom-prompt-input');
+        if (!ta.value) ta.value = isPodcast ? DEFAULT_CHAPTERS_PROMPT : DEFAULT_DETECT_PROMPT;
+
+        localStorage.setItem('chalchitra_episode', JSON.stringify({
+          episodeId: state.episodeId,
+          pipelineType: state.pipelineType,
+          screen: 'transcript',
+        }));
+
+        goTo('transcript');
+      }
+
+      async function resumeTranscript() {
+        const customPrompt = document.getElementById('custom-prompt-input').value.trim();
+        const correctedTranscript = document.getElementById('transcript-body').value.trim();
+        const btn = document.querySelector('.btn-continue');
+        btn.disabled = true;
+        btn.textContent = 'Starting…';
+
+        try {
+          const endpoint = state.pipelineType === 'podcast'
+            ? `${ORCHESTRATOR}/podcast/resume_transcript`
+            : `${ORCHESTRATOR}/pipeline/resume_transcript`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              episode_id: state.episodeId,
+              custom_prompt: customPrompt || null,
+              corrected_transcript: correctedTranscript || null,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+
+          goTo('pipeline');
+          startPolling();
+        } catch (e) {
+          btn.disabled = false;
+          btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg> Continue Pipeline`;
+          alert('Error: ' + e.message);
+        }
+      }
+
+      // REVIEW SCREEN (clips HITL)
+      // ═══════════════════════════════════════════════════════════════
+      function showReview(clips) {
+        state.currentClips = clips;
+        document.getElementById('review-meta').textContent = `${clips.length} clips detected — select which to render`;
+
+        const grid = document.getElementById('clips-grid');
+        grid.innerHTML = clips.map((clip, i) => {
+          const dur = Math.round((clip.end_seconds || 0) - (clip.start_seconds || 0));
+          return `
+            <div class="clip-card" id="clip-card-${i}" onclick="toggleClip(${i})">
+              <div class="clip-card-head">
+                <div class="clip-check" id="clip-check-${i}"></div>
+                <div class="clip-card-title">${clip.title}</div>
+              </div>
+              <div class="clip-card-body">
+                <div class="clip-ts-row">
+                  <span class="clip-ts">${fmtTime(clip.start_seconds)} → ${fmtTime(clip.end_seconds)}</span>
+                  <span class="clip-dur">${dur}s</span>
+                </div>
+                <div class="clip-reason">${clip.reason || ''}</div>
+              </div>
+            </div>`;
+        }).join('');
+
+        updateSelCount();
+        goTo('review');
+      }
+
       function toggleClip(i) {
-        const card = document.getElementById(`clip-${i}`);
-        const check = document.getElementById(`check-${i}`);
-        card.classList.toggle("selected");
-        card.classList.toggle("rejected");
-        check.classList.toggle("checked");
-        check.textContent = check.classList.contains("checked") ? "✓" : "";
+        const card = document.getElementById(`clip-card-${i}`);
+        const check = document.getElementById(`clip-check-${i}`);
+        const isOn = card.classList.contains('selected');
+        card.classList.toggle('selected', !isOn);
+        check.classList.toggle('on', !isOn);
+        check.textContent = isOn ? '' : '✓';
         updateSelCount();
       }
 
-      function selectAll() {
-        document.querySelectorAll(".clip-card").forEach((c, i) => {
-          c.classList.add("selected");
-          c.classList.remove("rejected");
-          const ch = document.getElementById(`check-${i}`);
-          ch.classList.add("checked");
-          ch.textContent = "✓";
+      function selectAllClips() {
+        state.currentClips.forEach((_, i) => {
+          document.getElementById(`clip-card-${i}`).className = 'clip-card selected';
+          const ch = document.getElementById(`clip-check-${i}`);
+          ch.className = 'clip-check on';
+          ch.textContent = '✓';
         });
         updateSelCount();
       }
 
       function updateSelCount() {
-        const n = document.querySelectorAll(".clip-card.selected").length;
-        const el = document.getElementById("sel-count");
-        if (el) el.textContent = n;
+        const n = document.querySelectorAll('.clip-card.selected').length;
+        document.getElementById('sel-count').textContent = n;
+        document.getElementById('btn-approve').disabled = n === 0;
       }
 
-      // ── Approve / Reject ─────────────────────────────────────────
-      async function approveClips(episodeId) {
-        const clips = window._currentClips || [];
-        const selected = [];
-        document.querySelectorAll(".clip-card").forEach((card, i) => {
-          if (card.classList.contains("selected")) selected.push(clips[i]);
-        });
+      async function approveClips() {
+        const selected = state.currentClips.filter((_, i) =>
+          document.getElementById(`clip-card-${i}`)?.classList.contains('selected')
+        );
+        if (!selected.length) return;
 
-        if (!selected.length) {
-          log("No clips selected", "warn");
-          return;
-        }
-
-        const btn = document.querySelector(".approval-bar .btn-success");
+        const btn = document.getElementById('btn-approve');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span> Sending...';
 
-        // Fire and forget — rendering takes minutes, don't await
-        fetch(`${API}/pipeline/approve`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        fetch(`${ORCHESTRATOR}/pipeline/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            episode_id: episodeId,
+            episode_id: state.episodeId,
             approved_clips: selected,
-            human_feedback: "approved via UI",
+            human_feedback: 'approved via UI',
           }),
         }).catch(() => {});
-        log(`✓ Approved ${selected.length} clips. Rendering in background...`, "ok");
-        updateEpisodeStatus(episodeId, "running");
-        btn.textContent = "⟳ Rendering...";
-        startPolling(episodeId);
+
+        appendLog('OK', `Approved ${selected.length} clips — rendering started`);
+        setStatusPill('processing', 'Rendering');
+        goTo('pipeline');
+        startPolling();
       }
 
-      async function rejectAll(episodeId) {
-        if (!confirm("Reject all clips?")) return;
-        try {
-          await fetch(`${API}/pipeline/reject`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ episode_id: episodeId, feedback: "rejected via UI" }),
-          });
-          log("All clips rejected.", "warn");
-          updateEpisodeStatus(episodeId, "rejected");
-        } catch (e) {
-          log(`✗ ${e.message}`, "err");
+      async function rejectAll() {
+        if (!confirm('Reject all clips and end this pipeline run?')) return;
+        await fetch(`${ORCHESTRATOR}/pipeline/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ episode_id: state.episodeId, feedback: 'rejected via UI' }),
+        }).catch(() => {});
+        appendLog('WARN', 'All clips rejected');
+        resetToUpload();
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // OUTPUT — PODCAST
+      // ═══════════════════════════════════════════════════════════════
+      function showPodcastOutput(s) {
+        clearInterval(state.pollTimer);
+        const episodeId = state.episodeId;
+        const videoUrl = `${MEDIA_BASE}/${episodeId}/podcast_final.mp4`;
+
+        document.getElementById('output-video').src = videoUrl;
+        document.getElementById('btn-download').href = videoUrl;
+
+        const chapters = s.chapters || [];
+        document.getElementById('chapters-count').textContent = `${chapters.length} TOTAL`;
+        document.getElementById('chapters-list').innerHTML = chapters.map((ch, i) => `
+          <div class="chapter-item ${i === 0 ? 'active' : ''}" onclick="seekChapter(${ch.start_seconds}, this)">
+            <div class="chapter-num">CHAPTER ${String(i+1).padStart(2,'0')}<span class="chapter-ts">${fmtTime(ch.start_seconds)}</span></div>
+            <div class="chapter-title">${ch.title}</div>
+            <div class="chapter-subtitle">${ch.subtitle || ''}</div>
+          </div>`).join('');
+
+        document.getElementById('output-meta').textContent = `PODCAST_FINAL.MP4 • ${chapters.length} CHAPTERS`;
+        document.getElementById('output-podcast').classList.remove('hidden');
+        document.getElementById('output-clips').classList.add('hidden');
+
+        setStatusPill('complete', 'Complete');
+        recordEpisodeComplete(episodeId, 'completed');
+        localStorage.setItem('chalchitra_episode', JSON.stringify({ episodeId, pipelineType: 'podcast', screen: 'output' }));
+        goTo('output');
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // OUTPUT — CLIPS
+      // ═══════════════════════════════════════════════════════════════
+      function showClipsOutput(s) {
+        clearInterval(state.pollTimer);
+        const episodeId = state.episodeId;
+        const clips = s.rendered_clips || [];
+
+        document.getElementById('output-meta').textContent = `${clips.length} CLIPS RENDERED`;
+        document.getElementById('output-podcast').classList.add('hidden');
+
+        const grid = document.getElementById('output-clips');
+        grid.classList.remove('hidden');
+        grid.innerHTML = clips.map(clip => {
+          const filename = clip.rendered_clip?.split('/').pop() || '';
+          const src = filename ? `${MEDIA_BASE}/${episodeId}/${filename}` : '';
+          const dur = Math.round((clip.end_seconds || 0) - (clip.start_seconds || 0));
+          return `
+            <div class="clip-output-card">
+              <video src="${src}" controls></video>
+              <div class="clip-output-info">
+                <div class="clip-output-title">${clip.title}</div>
+                <div class="clip-output-dur">${fmtTime(dur)} duration</div>
+              </div>
+            </div>`;
+        }).join('');
+
+        // Update download button to download as zip isn't possible, just remove it for clips
+        document.getElementById('btn-download').style.display = 'none';
+        document.getElementById('output-banner').querySelector('h2').textContent = 'Clips Ready';
+
+        setStatusPill('complete', 'Complete');
+        recordEpisodeComplete(episodeId, 'completed');
+        localStorage.setItem('chalchitra_episode', JSON.stringify({ episodeId, pipelineType: 'clips', screen: 'output' }));
+        goTo('output');
+      }
+
+      function seekChapter(seconds, el) {
+        document.querySelectorAll('.chapter-item').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        const v = document.getElementById('output-video');
+        v.currentTime = seconds;
+        v.play();
+      }
+
+      function resetToUpload() {
+        clearInterval(state.pollTimer);
+        const type = state.pipelineType;
+        state = { screen: 'upload', pipelineType: type, episodeId: null, pollTimer: null, logLines: [], currentClips: [] };
+        _lastLogStep = null;
+        _lastSegmentCount = -1;
+        localStorage.removeItem('chalchitra_episode');
+
+        document.getElementById('file-name-label').textContent = '';
+        document.getElementById('file-selected').classList.remove('show');
+        document.getElementById('project-label').style.display = 'none';
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-start').innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+          Start Pipeline
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+        document.getElementById('btn-download').style.display = '';
+
+        buildStepper();
+        setStatusPill('idle', 'Ready');
+        goTo('upload');
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // NAV / SCREEN SWITCHING
+      // ═══════════════════════════════════════════════════════════════
+      const PIPELINE_SCREENS = new Set(['upload', 'pipeline', 'transcript', 'review', 'output']);
+
+      function goTo(screenName) {
+        state.screen = screenName;
+        if (PIPELINE_SCREENS.has(screenName)) state.pipelineScreen = screenName;
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`screen-${screenName}`)?.classList.add('active');
+      }
+
+      function switchNav(name) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(`nav-${name}`)?.classList.add('active');
+        if (name === 'pipeline') {
+          goTo(state.pipelineScreen || 'upload');
+        } else if (name === 'library') {
+          renderLibrary();
+          goTo('library');
+        } else if (name === 'logs') {
+          loadLogs();
+          goTo('logs');
         }
       }
 
-      // ── Episode List ─────────────────────────────────────────────
-      function renderEpisodeList() {
-        const el = document.getElementById("episode-list");
-        if (!episodes.length) {
-          el.innerHTML = `<div style="color:var(--muted);font-size:11px;">No episodes yet.</div>`;
+      function setStatusPill(type, text) {
+        const pill = document.getElementById('status-pill');
+        pill.className = `status-pill ${type}`;
+        const dot = pill.querySelector('.status-dot');
+        dot.className = 'status-dot' + (type === 'processing' ? ' pulse' : '');
+        document.getElementById('status-text').textContent = text;
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // EPISODE HISTORY (for Library)
+      // ═══════════════════════════════════════════════════════════════
+      function getEpisodeHistory() {
+        try { return JSON.parse(localStorage.getItem('chalchitra_history') || '[]'); }
+        catch { return []; }
+      }
+
+      function saveEpisodeToHistory(ep) {
+        const history = getEpisodeHistory();
+        const existing = history.findIndex(e => e.id === ep.id);
+        if (existing >= 0) history[existing] = { ...history[existing], ...ep };
+        else history.unshift(ep);
+        localStorage.setItem('chalchitra_history', JSON.stringify(history.slice(0, 50)));
+      }
+
+      function updateEpisodeInHistory(id, updates) {
+        const history = getEpisodeHistory();
+        const ep = history.find(e => e.id === id);
+        if (ep) { Object.assign(ep, updates); localStorage.setItem('chalchitra_history', JSON.stringify(history)); }
+      }
+
+      // Save when pipeline starts
+      const _origStartUpload = startUpload;
+
+      // ═══════════════════════════════════════════════════════════════
+      // LIBRARY
+      // ═══════════════════════════════════════════════════════════════
+      function renderLibrary() {
+        const history = getEpisodeHistory();
+        const body = document.getElementById('library-body');
+        document.getElementById('library-subtitle').textContent = `${history.length} episodes`;
+
+        if (!history.length) {
+          body.innerHTML = `
+            <div class="empty-library">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <h3>No episodes yet</h3>
+              <p>Episodes appear here after you run a pipeline</p>
+            </div>`;
           return;
         }
-        el.innerHTML = episodes
-          .slice(0, 20)
-          .map(
-            (ep) => `
-    <div class="episode-item ${ep.id === currentEpisode ? "active" : ""}" 
-         data-id="${ep.id}" onclick="loadEpisode('${ep.id}')">
-      <div class="ep-id">${ep.id}</div>
-      <span class="ep-status ${ep.status === "awaiting_approval" ? "awaiting" : ep.status === "completed" ? "completed" : ep.status === "running" ? "running" : "running"}">
-        ${ep.status === "awaiting_approval" ? "⏸ Review" : ep.status === "completed" ? "✓ Done" : "⟳ Running"}
-      </span>
-    </div>
-  `,
-          )
-          .join("");
+
+        body.innerHTML = `
+          <table class="episode-table">
+            <thead>
+              <tr>
+                <th>Episode ID</th>
+                <th>Type</th>
+                <th>File</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${history.map(ep => `
+                <tr>
+                  <td class="ep-id-cell" title="${ep.id}">${ep.id.slice(0,8)}...</td>
+                  <td><span class="type-badge ${ep.type}">${ep.type}</span></td>
+                  <td style="color:var(--muted);font-size:12px;">${ep.filename || '—'}</td>
+                  <td><span class="status-badge ${ep.status || 'unknown'}">${ep.status || 'unknown'}</span></td>
+                  <td style="color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;">${ep.date ? new Date(ep.date).toLocaleString() : '—'}</td>
+                  <td>
+                    <div class="ep-actions">
+                      <button class="btn-icon" title="Reload" onclick="reloadEpisode('${ep.id}','${ep.type}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+                      </button>
+                      <button class="btn-icon danger" title="Delete" onclick="deleteEpisode('${ep.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`;
       }
 
-      function updateEpisodeStatus(id, status) {
-        const ep = episodes.find((e) => e.id === id);
-        if (ep) {
-          ep.status = status;
-          saveEpisodes();
-          renderEpisodeList();
+      async function reloadEpisode(id, type) {
+        state.episodeId = id;
+        state.pipelineType = type;
+        setPipelineType(type);
+        document.getElementById('project-label').textContent = id.slice(0,8) + '...';
+        document.getElementById('project-label').style.display = '';
+        switchNav('pipeline');
+
+        const endpoint = type === 'podcast'
+          ? `${ORCHESTRATOR}/podcast/status/${id}`
+          : `${ORCHESTRATOR}/pipeline/status/${id}`;
+
+        try {
+          const r = await fetch(endpoint);
+          const data = await r.json();
+          const s = data.state || {};
+          if (s.pipeline_status === 'completed' || s.final_video || s.rendered_clips?.length) {
+            type === 'podcast' ? showPodcastOutput(s) : showClipsOutput(s);
+          } else {
+            goTo('pipeline');
+            startPolling();
+          }
+        } catch {
+          goTo('pipeline');
+          startPolling();
         }
       }
 
-      function saveEpisodes() {
-        localStorage.setItem("chalchitra_episodes", JSON.stringify(episodes));
+      function deleteEpisode(id) {
+        const history = getEpisodeHistory().filter(e => e.id !== id);
+        localStorage.setItem('chalchitra_history', JSON.stringify(history));
+        renderLibrary();
       }
 
-      // ── Helpers ──────────────────────────────────────────────────
+      function clearLibrary() {
+        if (!confirm('Clear all episode history?')) return;
+        localStorage.removeItem('chalchitra_history');
+        renderLibrary();
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // LOGS
+      // ═══════════════════════════════════════════════════════════════
+      let logsAutoRefresh = null;
+      let logFilter = 'all';
+      let logSearchTerm = '';
+      let allLogRows = [];
+
+      async function loadLogs() {
+        try {
+          const r = await fetch('/media/pipeline.log?t=' + Date.now());
+          if (!r.ok) throw new Error('log not found');
+          const text = await r.text();
+          renderLogs(text);
+          document.getElementById('logs-last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+          document.getElementById('logs-live-dot').style.display = '';
+        } catch {
+          document.getElementById('logs-body').innerHTML =
+            `<div style="color:var(--muted);padding:40px;text-align:center;font-family:'JetBrains Mono',monospace;">
+              pipeline.log not found — run a pipeline first
+            </div>`;
+        }
+      }
+
+      function renderLogs(text) {
+        const lines = text.trim().split('\n').filter(Boolean);
+        const body = document.getElementById('logs-body');
+
+        allLogRows = lines.map(line => {
+          // Format: "2026-06-15 12:31:35 | INFO     | podcast_chapters | [49f9a23d] message"
+          const parts = line.split(' | ');
+          if (parts.length >= 4) {
+            const ts      = parts[0].trim();
+            const level   = parts[1].trim();
+            const service = parts[2].trim();
+            const msg     = parts.slice(3).join(' | ').trim();
+            const epMatch = msg.match(/\[([a-f0-9-]{8,})\]/);
+            const epId    = epMatch ? epMatch[1] : '';
+            const cleanMsg = msg.replace(/\[[a-f0-9-]{8,36}\]\s*/, '');
+            return { ts, level, service, msg: cleanMsg, epId, raw: line };
+          }
+          return { ts: '', level: 'INFO', service: '', msg: line, epId: '', raw: line };
+        });
+
+        document.getElementById('logs-line-count').textContent = `${allLogRows.length} lines`;
+        applyLogFilter();
+      }
+
+      function applyLogFilter() {
+        const body = document.getElementById('logs-body');
+        const search = logSearchTerm.toLowerCase();
+
+        const filtered = allLogRows.filter(row => {
+          const matchFilter = logFilter === 'all' ||
+            (logFilter === 'info' && row.level === 'INFO') ||
+            (logFilter === 'ok'   && !['ERROR','WARN'].includes(row.level)) ||
+            (logFilter === 'error' && ['ERROR','WARN'].includes(row.level));
+          const matchSearch = !search || row.raw.toLowerCase().includes(search);
+          return matchFilter && matchSearch;
+        });
+
+        body.innerHTML = filtered.slice(-500).map(row => `
+          <div class="log-row">
+            <span class="log-ts">${row.ts.slice(11)}</span>
+            <span class="log-level ${row.level}">${row.level}</span>
+            <span class="log-service">${row.service.slice(0,16)}</span>
+            <span class="log-text">
+              ${row.epId ? `<span class="log-epid">[${row.epId.slice(0,8)}]</span> ` : ''}${row.msg}
+            </span>
+          </div>
+        `).join('');
+
+        body.scrollTop = body.scrollHeight;
+      }
+
+      function setLogFilter(f) {
+        logFilter = f;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`filter-${f}`)?.classList.add('active');
+        applyLogFilter();
+      }
+
+      function filterLogs() {
+        logSearchTerm = document.getElementById('logs-search').value;
+        applyLogFilter();
+      }
+
+      // Auto-refresh logs every 5s when on logs screen
+      setInterval(() => {
+        if (document.getElementById('screen-logs')?.classList.contains('active')) loadLogs();
+      }, 5000);
+
+      // ═══════════════════════════════════════════════════════════════
+      // SAVE EPISODES TO HISTORY (hook into startUpload)
+      // ═══════════════════════════════════════════════════════════════
+      // Patch saveToHistory after upload succeeds — called from startUpload
+      function recordEpisodeStart(episodeId, filename, type) {
+        saveEpisodeToHistory({
+          id: episodeId,
+          type,
+          filename,
+          status: 'running',
+          date: new Date().toISOString(),
+          screen: 'pipeline',
+        });
+      }
+
+      function recordEpisodeComplete(episodeId, status) {
+        updateEpisodeInHistory(episodeId, { status, screen: 'output' });
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // HELPERS
+      // ═══════════════════════════════════════════════════════════════
       function fmtTime(s) {
+        if (!s && s !== 0) return '--:--';
         const m = Math.floor(s / 60);
         const sec = Math.floor(s % 60);
-        return `${m}:${sec.toString().padStart(2, "0")}`;
+        return `${m}:${String(sec).padStart(2, '0')}`;
       }
-
-      function getDoneSteps(state, next) {
-        const done = [];
-        if (state.transcript_text) done.push("transcribe");
-        if (state.detected_clips) {
-          done.push("enrich");
-          done.push("detect");
-        }
-        if (state.cut_clips) done.push("ffmpeg");
-        if (state.cut_clips) done.push("filter_clips");
-        if (state.rendered_clips?.length || state.pipeline_status === "completed") done.push("renderer");
-        return done;
-      }
-
-      function log(msg, type = "info") {
-        console.log(`[chalchitra] ${msg}`);
-      }
-
-      // ── Init ─────────────────────────────────────────────────────
-      checkHealth();
-      setInterval(checkHealth, 15000);
-      renderEpisodeList();
     </script>
   </body>
 </html>

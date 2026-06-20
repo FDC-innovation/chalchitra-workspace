@@ -25,6 +25,12 @@ def health():
     return {"status": "transcription service running"}
 
 
+def _clear_model_hooks():
+    for block in model.decoder.blocks:
+        block.cross_attn._forward_hooks.clear()
+        block.cross_attn._forward_pre_hooks.clear()
+
+
 @app.post("/transcribe")
 def transcribe(req: TranscribeRequest):
     if not os.path.exists(req.file_path):
@@ -32,23 +38,28 @@ def transcribe(req: TranscribeRequest):
 
     print(f"Transcribing: {req.file_path}", flush=True)
 
-    # Detect language first
-    audio = whisper.load_audio(req.file_path)
-    audio = whisper.pad_or_trim(audio)
-    mel = whisper.log_mel_spectrogram(audio).to(model.device)
-    _, probs = model.detect_language(mel)
-    detected_lang = max(probs, key=probs.get)
-    print(f"Detected language: {detected_lang}", flush=True)
+    _clear_model_hooks()
 
-    # Translate to English regardless of source language
-    result = model.transcribe(
-        req.file_path,
-        task="translate",
-        word_timestamps=True,
-        fp16=False,
-        condition_on_previous_text=False,
-        temperature=0,
-    )
+    try:
+        result = model.transcribe(
+            req.file_path,
+            task="translate",
+            word_timestamps=True,
+            fp16=False,
+            condition_on_previous_text=False,
+            temperature=0,
+        )
+    except Exception as e:
+        print(f"word_timestamps failed ({e}), retrying without", flush=True)
+        _clear_model_hooks()
+        result = model.transcribe(
+            req.file_path,
+            task="translate",
+            word_timestamps=False,
+            fp16=False,
+            condition_on_previous_text=False,
+            temperature=0,
+        )
 
     words = []
     for segment in result.get("segments", []):
@@ -65,7 +76,7 @@ def transcribe(req: TranscribeRequest):
             f"{i}\n{format_time(segment['start'])} --> {format_time(segment['end'])}\n{segment['text'].strip()}\n"
         )
 
-    print(f"Done. {len(words)} words. Lang: {detected_lang}", flush=True)
+    print(f"Done. {len(words)} words.", flush=True)
 
     return {
         "episode_id": req.episode_id,

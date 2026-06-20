@@ -22,8 +22,7 @@ def build_podcast_graph(checkpointer):
     builder.add_edge("cut", "renderer")
     builder.add_edge("renderer", END)
 
-    # interrupt_before="cut" pauses after chapters so the user can review/edit
-    # chapters via POST /podcast/approve before cutting starts
     return builder.compile(
         checkpointer=checkpointer,
+        interrupt_before=["chapters"],
     )

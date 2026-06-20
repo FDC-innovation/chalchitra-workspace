@@ -5,7 +5,7 @@ from app.podcast_state import PodcastState
 
 logger = get_logger("podcast_cut")
 
-MIN_CHAPTER_SECONDS = 10.0   # drop chapters shorter than this
+MIN_CHAPTER_SECONDS = 5.0   # drop chapters shorter than this
 
 
 async def podcast_cut_node(state: PodcastState) -> dict:
@@ -41,7 +41,7 @@ async def podcast_cut_node(state: PodcastState) -> dict:
                         }],
                         "clip_index": i,
                     },
-                    timeout=300,
+                    timeout=36000,
                 )
 
             if response.status_code == 200:

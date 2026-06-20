@@ -28,6 +28,7 @@ class PodcastState(TypedDict):
 
     # human-in-the-loop
     human_feedback: Optional[str]
+    custom_prompt: Optional[str]
 
     pipeline_status: Optional[str]
     error: Optional[str]
