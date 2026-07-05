@@ -8,6 +8,7 @@ services:
       - "8001:8001"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
       - whisper_cache:/root/.cache/whisper
     restart: unless-stopped
     networks:
@@ -70,6 +71,7 @@ services:
       - "8004:8004"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     restart: unless-stopped
     networks:
       - chalchitra
@@ -89,6 +91,7 @@ services:
       - "8006:8006"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     restart: unless-stopped
     shm_size: "256mb"
     networks:
@@ -109,6 +112,7 @@ services:
       - "8009:8009"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     restart: unless-stopped
     networks:
       - chalchitra
@@ -136,6 +140,7 @@ services:
       - "8008:8008"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     networks:
       - chalchitra
 
@@ -145,6 +150,7 @@ services:
       - "8010:8010"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     networks:
       - chalchitra
 
@@ -155,6 +161,7 @@ services:
       - "8012:8012"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     networks:
       - chalchitra
     restart: unless-stopped
@@ -169,6 +176,7 @@ services:
       - OLLAMA_URL=${OLLAMA_URL:-http://172.19.0.1:11434}
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     networks:
       - chalchitra
     depends_on:
@@ -188,6 +196,7 @@ services:
       - "8000:8000"
     volumes:
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     env_file:
       - .env
     restart: unless-stopped
@@ -228,6 +237,7 @@ services:
       - ./services/ui/index.html:/usr/share/nginx/html/index.html
       - ./services/ui/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./shared/volumes:/app/shared/volumes
+      - /Users/adityakumartonk/Videos/chalchitra-input:/app/input
     networks:
       - chalchitra
     restart: unless-stopped
