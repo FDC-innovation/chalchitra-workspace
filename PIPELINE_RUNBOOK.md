@@ -9,6 +9,10 @@ gateway :8000 → orchestrator :8007 (LangGraph, SQLite checkpoints)
     transcribe → [interrupt] → enrich → detect → filter_clips → ffmpeg → renderer
 services: detect :8003 | ffmpeg :8004 | renderer :8006 | enrich :8002 | ollama :11434
 
+## Direct Episode into Clips
+caffeinate -i ./run_pipeline.sh ~/Videos/chalchitra-input/my-new-episode.mp4
+
+
 ## Constraints (8GB Mac, Docker VM ~3.8GB)
 
 - Ollama (llama3.2:latest, 2GB) needs headroom. While detect runs, STOP heavy containers:
