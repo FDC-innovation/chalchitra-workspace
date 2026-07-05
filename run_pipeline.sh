@@ -31,7 +31,7 @@ sleep 5
 log "Phase 2: transcribing (roughly real-time; a 90-min video takes a long while)"
 START_RESP=$(curl -s --max-time 36000 -X POST "$ORCH/pipeline/start" \
   -H "Content-Type: application/json" \
-  -d "{\"file_path\": \"$CONTAINER_PATH\"}")
+  -d "{\"file_path\": \"$CONTAINER_PATH\", \"transcription_engine\": \"indic\"}")
 EPISODE_ID=$(echo "$START_RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['episode_id'])")
 log "Transcription done (episode $EPISODE_ID), graph paused"
 
