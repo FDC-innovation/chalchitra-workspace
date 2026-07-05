@@ -7,3 +7,11 @@ __pycache__/
 .DS_Store
 *.db
 shared/volumes/
+transcript.txt
+words.json
+detected_clips*.json
+snapped_clips.json
+cut_clips.json
+render_results.json
+*.bak
+*.db

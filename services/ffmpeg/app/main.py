@@ -36,10 +36,13 @@ def generate_clips(req: ClipRequest):
         safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:40]
         output_path = os.path.join(output_dir, f"{req.episode_id}_clip{i}_{safe_title}.mp4")
 
+        coarse = max(0, start - 5)
+        fine = start - coarse
         cmd = [
             "ffmpeg", "-y",
+            "-ss", str(coarse),
             "-i", req.file_path,
-            "-ss", str(start),
+            "-ss", str(fine),
             "-t", str(duration),
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
             "-r", "30",
